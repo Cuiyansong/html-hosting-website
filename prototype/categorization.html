@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>分类管理原型 · 方案1（分类实体 + 单归属）</title>
+<style>
+  /* ================= 基础 ================= */
+  :root {
+    --bg:#f6f7fb; --card:#fff; --text:#12151c; --muted:#6b7280; --line:#e6e8ef; --accent:#3b6cf6;
+    --ok:#0e9f6e; --err:#e02424; --warn:#b45309;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; color:var(--text);
+    background:
+      radial-gradient(900px 500px at 12% -10%, #e6ecff 0%, transparent 60%),
+      radial-gradient(800px 460px at 95% 0%, #ffeef2 0%, transparent 55%), var(--bg);
+    font:15px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .hidden{display:none !important}
+  .muted{color:var(--muted)}
+
+  /* ================= 原型工具条（不属于产品 UI） ================= */
+  .proto{
+    position:sticky; top:0; z-index:60; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    padding:10px 16px; background:rgba(18,21,28,.94); color:#e7e9ef; backdrop-filter:blur(8px);
+    font-size:13px;
+  }
+  .proto b{font-weight:600; opacity:.85}
+  .proto-tabs{display:flex; gap:4px; background:#232833; padding:3px; border-radius:9px}
+  .proto-tabs button{
+    background:transparent; border:0; color:#9aa3b6; font-size:13px; padding:6px 13px;
+    border-radius:7px; cursor:pointer;
+  }
+  .proto-tabs button.active{background:#39414f; color:#fff}
+  .proto label{display:flex; align-items:center; gap:6px; color:#9aa3b6; cursor:pointer; margin-left:auto}
+  .proto .tag{font-family:ui-monospace,Menlo,monospace; font-size:11.5px; color:#7d879c}
+
+  /* ================= 标注 ================= */
+  .annot{
+    display:none; margin:8px 0 2px; padding:7px 11px; border-radius:8px; font-size:12.5px; line-height:1.55;
+    background:rgba(59,108,246,.07); border:1px dashed rgba(59,108,246,.45); color:#33406b;
+  }
+  body.annot-on .annot{display:block}
+  body.admin.annot-on .annot{background:rgba(79,124,255,.1); border-color:rgba(79,124,255,.5); color:#b9c6ef}
+
+  /* ================= 门户页（浅色，取自 portal.html） ================= */
+  .wrap{max-width:1000px; margin:0 auto; padding:48px 22px 80px}
+  header{margin-bottom:26px}
+  h1{font-size:30px; font-weight:650; margin:0 0 8px; letter-spacing:-.5px}
+  .sub{color:var(--muted); font-size:14.5px}
+
+  .toolbar{display:flex; flex-direction:column; gap:12px; margin-bottom:24px}
+  .filters{display:flex; gap:8px; overflow-x:auto; padding:2px; flex:1; min-width:240px; scrollbar-width:none}
+  .filters::-webkit-scrollbar{display:none}
+  .chip{
+    display:inline-flex; align-items:center; gap:7px; white-space:nowrap;
+    background:#fff; border:1px solid var(--line); border-radius:999px; padding:7px 14px;
+    font-size:13.5px; color:#3c4354; cursor:pointer; transition:.15s;
+    box-shadow:0 1px 2px rgba(16,24,40,.04);
+  }
+  .chip:hover{border-color:#cfd6e6}
+  .chip[aria-pressed="true"]{background:#12151c; border-color:#12151c; color:#fff}
+  .chip .n{font-size:12px; opacity:.6; font-variant-numeric:tabular-nums}
+  .chip[aria-pressed="true"] .n{opacity:.75}
+  .chip .dot{width:8px; height:8px; border-radius:50%; flex-shrink:0}
+  .chip:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  input[type="search"]{
+    width:100%; max-width:340px;
+    background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 14px;
+    font-size:14px; color:var(--text); outline:none; box-shadow:0 1px 2px rgba(16,24,40,.04);
+  }
+  input[type="search"]:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(59,108,246,.12)}
+
+  .cat-group{margin:0 0 26px}
+  .cat-head{display:flex; align-items:center; gap:9px; margin:0 0 12px; padding:0 2px}
+  .cat-head h2{font-size:15px; font-weight:600; margin:0; letter-spacing:.1px}
+  .cat-head .count{font-size:12.5px; color:#9aa1b1; font-variant-numeric:tabular-nums}
+  .cat-head .bar{flex:1; height:1px; background:linear-gradient(90deg,var(--line),transparent)}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(285px,1fr)); gap:14px}
+  .card{
+    display:flex; align-items:center; gap:14px; background:#fff; border:1px solid var(--line);
+    border-radius:14px; padding:16px 18px; text-decoration:none; color:inherit;
+    box-shadow:0 1px 2px rgba(16,24,40,.04);
+    transition:transform .16s, box-shadow .16s, border-color .16s; position:relative;
+  }
+  .card:hover{transform:translateY(-2px); box-shadow:0 10px 26px rgba(16,24,40,.09); border-color:#d4d9e6}
+  .card:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .avatar{
+    width:44px; height:44px; flex-shrink:0; border-radius:11px; display:flex;
+    align-items:center; justify-content:center; font-size:18px; font-weight:600; color:#fff; text-transform:uppercase;
+  }
+  .card-body{min-width:0; flex:1}
+  .card-name{font-size:15px; font-weight:550; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .card-meta{font-size:12.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .arrow{flex-shrink:0; color:#c3c9d6; font-size:17px; transition:transform .16s, color .16s}
+  .card:hover .arrow{transform:translateX(3px); color:var(--accent)}
+
+  .empty{
+    text-align:center; padding:62px 20px; color:var(--muted); background:#fff;
+    border:1px dashed var(--line); border-radius:16px;
+  }
+  .empty .big{font-size:32px; margin-bottom:10px; opacity:.55}
+  .empty p{margin:0; font-size:14px}
+  .empty button{
+    margin-top:14px; background:#fff; border:1px solid var(--line); border-radius:9px;
+    padding:8px 15px; font-size:13.5px; cursor:pointer; color:#3c4354;
+  }
+  .empty button:hover{border-color:#cfd6e6}
+  footer{margin-top:40px; text-align:center; color:#9aa1b1; font-size:12.5px}
+
+  /* ================= 管理页（深色，取自 index.html） ================= */
+  body.admin{
+    background:#0e1014; color:#e7e9ef;
+    --bg:#0e1014; --panel:#16191f; --panel-2:#1b1f27; --border:#272c36;
+    --text:#e7e9ef; --muted:#8a92a6; --accent:#4f7cff;
+  }
+  body.admin .annot{color:#b9c6ef}
+  #app{max-width:880px; margin:0 auto; padding:30px 20px 100px}
+  .top{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:20px; gap:16px; flex-wrap:wrap}
+  .top h1{font-size:20px; margin:0; font-weight:600; letter-spacing:0}
+  .top-actions{display:flex; align-items:center; gap:16px}
+  .top-link{color:#4f7cff; font-size:13px; text-decoration:none; cursor:pointer}
+  .top-link:hover{text-decoration:underline}
+
+  #drop{
+    border:2px dashed #272c36; border-radius:14px; padding:30px 20px; text-align:center;
+    background:#16191f; margin-bottom:22px; color:#8a92a6; font-size:13.5px;
+  }
+  #drop .icon{font-size:24px; margin-bottom:6px; opacity:.8}
+
+  .panel{background:#16191f; border:1px solid #272c36; border-radius:12px; margin-bottom:22px; overflow:hidden}
+  .panel summary{
+    cursor:pointer; list-style:none; padding:14px 18px; font-size:14px; color:#c9cfdd;
+    display:flex; align-items:center; gap:9px; user-select:none;
+  }
+  .panel summary::-webkit-details-marker{display:none}
+  .panel summary::before{content:'＋'; color:#8a92a6; font-size:13px}
+  .panel[open] summary::before{content:'－'}
+  .panel summary:hover{color:#fff}
+  .panel summary .badge{
+    font-size:11.5px; color:#8a92a6; background:#1b1f27; border:1px solid #272c36;
+    padding:1px 8px; border-radius:999px;
+  }
+  .panel-body{padding:2px 18px 18px}
+
+  .cat-row{
+    display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:9px;
+    border:1px solid transparent; transition:.15s;
+  }
+  .cat-row:hover{background:#1b1f27; border-color:#272c36}
+  .cat-row .grip{color:#4a5264; cursor:grab; font-size:13px; letter-spacing:-1px; user-select:none}
+  .cat-row .swatch{width:10px; height:10px; border-radius:3px; flex-shrink:0}
+  .cat-row input.cat-name{
+    background:transparent; border:1px solid transparent; color:#e7e9ef; font-size:14px;
+    padding:5px 8px; border-radius:7px; outline:none; min-width:120px; flex:1; max-width:260px;
+  }
+  .cat-row input.cat-name:hover{border-color:#2c3340}
+  .cat-row input.cat-name:focus{background:#0d0f14; border-color:#4f7cff}
+  .cat-row .slug{font-family:ui-monospace,Menlo,monospace; font-size:11.5px; color:#5c6577}
+  .cat-row .n{font-size:12px; color:#8a92a6; margin-left:auto; font-variant-numeric:tabular-nums}
+  .cat-row .sys{font-size:11.5px; color:#8a92a6; background:#1b1f27; border:1px solid #272c36; padding:1px 8px; border-radius:999px}
+  .cat-row .acts{display:flex; gap:4px; opacity:0; transition:.15s}
+  .cat-row:hover .acts, .cat-row:focus-within .acts{opacity:1}
+  .icon-btn{
+    background:#1b1f27; border:1px solid #272c36; color:#aab2c5; border-radius:7px;
+    width:28px; height:28px; font-size:13px; line-height:1; cursor:pointer; padding:0;
+  }
+  .icon-btn:hover{border-color:#3a4250; color:#fff}
+  .icon-btn.danger:hover{border-color:#4a2626; color:#ff6b6b}
+  .icon-btn:disabled{opacity:.35; cursor:not-allowed}
+
+  .cat-confirm{
+    display:flex; align-items:center; gap:10px; width:100%; font-size:13px; color:#ffc061;
+  }
+  .cat-confirm .grow{flex:1}
+  .cat-confirm button{font-size:12.5px; padding:6px 12px}
+
+  .cat-add{display:flex; gap:10px; margin-top:14px; padding-top:14px; border-top:1px solid #272c36}
+  .cat-add input{
+    flex:1; background:#0d0f14; border:1px solid #272c36; color:#e7e9ef; border-radius:8px;
+    padding:10px 13px; font-size:14px; outline:none;
+  }
+  .cat-add input:focus{border-color:#4f7cff}
+  .hint{color:#8a92a6; font-size:12.5px; margin:12px 0 0; line-height:1.6}
+
+  .sites-head{display:flex; justify-content:space-between; align-items:center; color:#8a92a6; font-size:13px; margin:0 0 12px; padding:0 2px; gap:12px; flex-wrap:wrap}
+  .sites-head .left{display:flex; align-items:center; gap:12px}
+  select{
+    background:#1b1f27; border:1px solid #272c36; color:#e7e9ef; border-radius:8px;
+    padding:7px 10px; font-size:13px; outline:none; cursor:pointer;
+  }
+  select:focus{border-color:#4f7cff}
+
+  .site{
+    background:#16191f; border:1px solid #272c36; border-radius:12px; padding:14px 16px;
+    margin-bottom:10px; display:flex; align-items:center; gap:14px; transition:border-color .15s, background .15s;
+  }
+  .site:hover{border-color:#333a47}
+  .site.picked{border-color:#4f7cff; background:#171c28}
+  .site input[type="checkbox"]{width:16px; height:16px; accent-color:#4f7cff; cursor:pointer; flex-shrink:0}
+  .site-main{flex:1; min-width:0}
+  .site-name{font-size:15px; font-weight:500; margin-bottom:4px; display:flex; align-items:center; gap:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .site-name .hide-badge{font-size:11px; color:#8a92a6; background:#1b1f27; border:1px solid #272c36; padding:1px 7px; border-radius:999px; font-weight:400}
+  .site-url{
+    color:#4f7cff; font-size:12.5px; text-decoration:none; display:block;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-family:ui-monospace,Menlo,monospace;
+  }
+  .site-url:hover{text-decoration:underline}
+  .site-meta{color:#8a92a6; font-size:12px; margin-top:4px}
+  .cat-cell{display:flex; align-items:center; gap:7px; flex-shrink:0}
+  .cat-cell .swatch{width:9px; height:9px; border-radius:3px}
+  .site-actions{display:flex; gap:7px; flex-shrink:0}
+  .btn{
+    background:#1b1f27; border:1px solid #272c36; color:#e7e9ef; border-radius:8px;
+    padding:7px 13px; font-size:13px; cursor:pointer; white-space:nowrap;
+  }
+  .btn:hover{border-color:#3a4250; background:#202530}
+  .btn.primary{background:#4f7cff; border-color:#4f7cff; color:#fff}
+  .btn.primary:hover{filter:brightness(1.1)}
+  .btn.danger:hover{border-color:#4a2626; color:#ff6b6b}
+  .btn:disabled{opacity:.45; cursor:not-allowed}
+
+  /* 批量操作条 */
+  .bulkbar{
+    position:sticky; bottom:16px; margin:16px auto 0; display:flex; align-items:center; gap:12px;
+    background:#1b1f27; border:1px solid #4f7cff; border-radius:12px; padding:12px 16px;
+    box-shadow:0 12px 34px rgba(0,0,0,.5); font-size:13.5px;
+  }
+  .bulkbar .grow{flex:1}
+  .bulkbar b{color:#8ab0ff}
+
+  .toast-host{position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:80; display:flex; flex-direction:column; gap:8px; align-items:center}
+  .toast{
+    background:#1b1f27; border:1px solid #272c36; color:#e7e9ef; padding:11px 18px;
+    border-radius:10px; font-size:13.5px; box-shadow:0 8px 30px rgba(0,0,0,.45);
+    animation:pop .18s ease-out; max-width:90vw;
+  }
+  body:not(.admin) .toast{background:#12151c; border-color:#2b3140}
+  .toast.ok{border-color:rgba(53,208,127,.45)}
+  @keyframes pop{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+
+  @media (max-width:640px){
+    .wrap{padding:32px 16px 60px}
+    h1{font-size:24px}
+    .grid{grid-template-columns:1fr}
+    .toolbar{flex-direction:column}
+    input[type="search"]{max-width:none}
+    .site{flex-wrap:wrap}
+    .site-actions{width:100%; justify-content:flex-end}
+    .bulkbar{flex-wrap:wrap}
+  }
+</style>
+</head>
+<body>
+
+<div class="proto">
+  <b>分类管理原型</b>
+  <span class="tag">方案1 · 分类实体 + 单归属</span>
+  <div class="proto-tabs" role="tablist">
+    <button role="tab" data-view="portal" class="active">门户页</button>
+    <button role="tab" data-view="admin">管理页</button>
+  </div>
+  <label><input type="checkbox" id="annot" /> 显示标注</label>
+</div>
+
+<!-- ============================================================ 门户页 -->
+<main id="view-portal">
+  <div class="wrap">
+    <header>
+      <h1>网站导航</h1>
+      <div class="sub" id="pSub">正在加载…</div>
+    </header>
+
+    <div class="toolbar">
+      <div class="filters" id="pFilters" role="group" aria-label="按分类筛选"></div>
+      <input type="search" id="pSearch" placeholder="搜索网站名称或分类…" autocomplete="off" />
+    </div>
+    <div class="annot">① 分类 chip 与搜索是 <b>AND</b> 关系；chip 后带该分类的站点数；「全部」永远在最前，「未分类」排在最后且仅在 >0 时出现。分类超过 6 个时可横向滚动（`overflow-x:auto`），不换行、不折叠。</div>
+
+    <div id="pContent"></div>
+    <div class="annot">② 分组顺序 = `categories[].order`，组内按 `updatedAt` 倒序；搜索时 <b>跨分类</b> 过滤，命中为 0 的组自动隐藏；全空时给「清空筛选」按钮而不是死路。</div>
+
+    <footer>内部静态网站 · 点击卡片即可打开</footer>
+  </div>
+</main>
+
+<!-- ============================================================ 管理页 -->
+<main id="view-admin" class="hidden">
+  <div id="app">
+    <div class="top">
+      <h1>我的网站</h1>
+      <div class="top-actions">
+        <a class="top-link">门户首页 ↗</a>
+        <a class="top-link">LLM 说明 ↗</a>
+        <button class="btn">退出登录</button>
+      </div>
+    </div>
+
+    <div id="drop"><div class="icon">⬆</div>把 .html 或 .zip 拖进来 → 自动建站并复制链接</div>
+
+    <details class="panel" id="catPanel" open>
+      <summary>分类管理 <span class="badge" id="catBadge">4 个分类</span></summary>
+      <div class="panel-body">
+        <div id="catList"></div>
+        <div class="cat-add">
+          <input id="catNewName" placeholder="新分类名称，回车创建（≤20 字）" maxlength="20" />
+          <button class="btn primary" id="catAddBtn">添加</button>
+        </div>
+        <p class="hint">
+          「未分类」是系统分类：始终存在、排在最后、不可改名与删除。<br />
+          删除分类不会删除站点——受影响的站点会自动移入「未分类」，操作前会告诉你影响几个。
+        </p>
+      </div>
+    </details>
+    <div class="annot">③ 分类行内直接改名（失焦/回车保存）；↑↓ 调整门户里的分组顺序；删除走 <b>行内二次确认</b>（写明「N 个站点将移入未分类」），不用浏览器 confirm。</div>
+
+    <div class="sites-head">
+      <div class="left">
+        <span id="siteCount"></span>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer">
+          <input type="checkbox" id="selAll" style="width:14px;height:14px;accent-color:#4f7cff" /> 全选
+        </label>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center">
+        <input type="search" id="adminSearch" placeholder="搜索站点…" autocomplete="off"
+               style="max-width:170px; padding:8px 12px; font-size:13px; background:#0d0f14; border-color:#272c36; color:#e7e9ef; box-shadow:none" />
+        <select id="adminFilterCat" aria-label="按分类筛选站点"></select>
+      </div>
+    </div>
+
+    <div id="list"></div>
+    <div class="annot">⑤ 每行一个原生 <code>&lt;select&gt;</code> 直接改分类（键盘可达、零弹层、移动端自动变原生选择器）；彩色小方块与门户卡片同色，扫一眼就知道归属。</div>
+
+    <div class="bulkbar hidden" id="bulkbar">
+      <span>已选 <b id="bulkCount">0</b> 个站点</span>
+      <span class="grow"></span>
+      <select id="bulkTarget" aria-label="批量设置的目标分类"></select>
+      <button class="btn primary" id="bulkApply">应用</button>
+      <button class="btn" id="bulkClear">取消</button>
+    </div>
+    <div class="annot">④ 选中任意站点后出现 <b>sticky 批量条</b>：几十个站点一次性归类，不用一个个点。应用后 toast 报「已将 N 个站点移至「X」」。</div>
+  </div>
+</main>
+
+<div class="toast-host" id="toasts"></div>
+
+<script>
+/* ============================================================
+   假数据：categories（实体）+ sites（单归属 categoryId）
+   ============================================================ */
+const PALETTE = [
+  ['#4f46e5', '#818cf8'],
+  ['#0891b2', '#22d3ee'],
+  ['#ea580c', '#fb923c'],
+  ['#db2777', '#f472b6'],
+  ['#059669', '#34d399'],
+  ['#7c3aed', '#a78bfa'],
+];
+const UNCAT_COLOR = ['#94a3b8', '#cbd5e1'];
+
+const state = {
+  view: 'portal',
+  categories: [
+    { id: 'c1', slug: 'frontend', name: '前端演示', order: 10, color: 0 },
+    { id: 'c2', slug: 'client',   name: '客户项目', order: 20, color: 1 },
+    { id: 'c3', slug: 'internal', name: '内部工具', order: 30, color: 2 },
+    { id: 'c4', slug: 'landing',  name: '活动落地页', order: 40, color: 3 },
+  ],
+  sites: [
+    { id: 's01', name: '组件库文档',     port: 18088, categoryId: 'c1', updatedAt: Date.now() - 3600000,   hidden: false },
+    { id: 's02', name: '数据看板 Demo',  port: 18089, categoryId: 'c1', updatedAt: Date.now() - 86400000,    hidden: false },
+    { id: 's03', name: '表单校验示例',   port: 18090, categoryId: 'c1', updatedAt: Date.now() - 3 * 864e5, hidden: false },
+    { id: 's04', name: '某某银行官网改版', port: 18091, categoryId: 'c2', updatedAt: Date.now() - 7200000,  hidden: false },
+    { id: 's05', name: '零售 POS 演示',   port: 18092, categoryId: 'c2', updatedAt: Date.now() - 2 * 864e5, hidden: false },
+    { id: 's06', name: '工单系统原型',    port: 18093, categoryId: 'c3', updatedAt: Date.now() - 1800000,   hidden: false },
+    { id: 's07', name: 'CI 状态墙',       port: 18094, categoryId: 'c3', updatedAt: Date.now() - 5 * 864e5, hidden: true  },
+    { id: 's08', name: '双十一主视觉',    port: 18095, categoryId: 'c4', updatedAt: Date.now() - 600000,    hidden: false },
+    { id: 's09', name: '新品预热 H5',     port: 18096, categoryId: 'c4', updatedAt: Date.now() - 4 * 864e5, hidden: false },
+    { id: 's10', name: '临时分享页面',    port: 18097, categoryId: null, updatedAt: Date.now() - 9 * 864e5, hidden: false },
+    { id: 's11', name: '周报归档',        port: 18098, categoryId: null, updatedAt: Date.now() - 11 * 864e5, hidden: false },
+  ],
+  q: '',
+  adminQ: '',
+  filterSlug: 'all',      // 'all' | slug | '__none'
+  selected: new Set(),
+  confirmDel: null,
+  adminFilter: 'all',
+  nextCatNo: 5,
+};
+
+/* ---------- 工具 ---------- */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sortedCats = () => [...state.categories].sort((a, b) => a.order - b.order);
+const catById = (id) => state.categories.find((c) => c.id === id) || null;
+const catColor = (cat) => (cat ? PALETTE[cat.color % PALETTE.length] : UNCAT_COLOR);
+const catName = (id) => catById(id)?.name || '未分类';
+const visibleSites = () => state.sites.filter((s) => !s.hidden);
+const countOf = (catId) => visibleSites().filter((s) => (s.categoryId || null) === catId).length;
+
+function fmt(iso) {
+  const diff = Date.now() - iso;
+  if (diff < 60e3) return '刚刚更新';
+  if (diff < 3600e3) return Math.floor(diff / 60e3) + ' 分钟前更新';
+  if (diff < 864e5) return Math.floor(diff / 3600e3) + ' 小时前更新';
+  if (diff < 30 * 864e5) return Math.floor(diff / 864e5) + ' 天前更新';
+  const d = new Date(iso);
+  return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+}
+
+function toast(text) {
+  const el = document.createElement('div');
+  el.className = 'toast ok';
+  el.textContent = text;
+  const host = $('toasts');
+  host.appendChild(el);
+  while (host.children.length > 2) host.firstChild.remove();
+  setTimeout(() => el.remove(), 2600);
+}
+
+/* ============================================================
+   门户页渲染
+   ============================================================ */
+function renderFilters() {
+  const total = visibleSites().length;
+  const chips = [{ slug: 'all', name: '全部', n: total, color: null }];
+  for (const c of sortedCats()) {
+    const n = countOf(c.id);
+    if (n > 0) chips.push({ slug: c.slug, name: c.name, n, color: catColor(c) });
+  }
+  const uncat = countOf(null);
+  if (uncat > 0) chips.push({ slug: '__none', name: '未分类', n: uncat, color: UNCAT_COLOR });
+
+  $('pFilters').innerHTML = chips.map((c) => `
+    <button class="chip" aria-pressed="${c.slug === state.filterSlug}" data-chip="${esc(c.slug)}">
+      ${c.color ? `<span class="dot" style="background:${c.color[0]}"></span>` : ''}
+      ${esc(c.name)}<span class="n">${c.n}</span>
+    </button>`).join('');
+
+  $('pFilters').querySelectorAll('[data-chip]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.filterSlug = btn.dataset.chip;
+      syncUrl();
+      renderPortal();
+    });
+  });
+}
+
+function groupList() {
+  // 分组：按 order 的分类 + 未分类兜底（永远最后）
+  const groups = sortedCats().map((c) => ({ key: c.id, name: c.name, color: catColor(c), sites: [] }));
+  groups.push({ key: '__none', name: '未分类', color: UNCAT_COLOR, sites: [] });
+
+  const q = state.q.trim().toLowerCase();
+  for (const s of visibleSites()) {
+    if (q) {
+      const hay = (s.name + ' ' + catName(s.categoryId)).toLowerCase();
+      if (!hay.includes(q)) continue;
+    }
+    if (state.filterSlug !== 'all') {
+      const want = state.filterSlug === '__none' ? null : (state.categories.find((c) => c.slug === state.filterSlug) || {}).id || '__x';
+      if (want === null ? s.categoryId : s.categoryId !== want) continue;
+    }
+    const g = groups.find((x) => x.key === (s.categoryId || '__none')) || groups[groups.length - 1];
+    g.sites.push(s);
+  }
+
+  for (const g of groups) g.sites.sort((a, b) => b.updatedAt - a.updatedAt);
+  return groups.filter((g) => g.sites.length > 0);
+}
+
+function card(s, color) {
+  const [c1, c2] = color;
+  const letter = s.name.trim().charAt(0) || '?';
+  return `
+    <a class="card" href="#" onclick="return false">
+      <div class="avatar" style="background:linear-gradient(135deg,${c1},${c2})">${esc(letter)}</div>
+      <div class="card-body">
+        <div class="card-name">${esc(s.name)}</div>
+        <div class="card-meta">${esc(fmt(s.updatedAt))}</div>
+      </div>
+      <div class="arrow">→</div>
+    </a>`;
+}
+
+function renderPortal() {
+  renderFilters();
+  const total = visibleSites().length;
+  $('pSub').textContent = total
+    ? `共 ${total} 个网站 · ${state.categories.length} 个分类，点击即可访问`
+    : '暂无网站';
+
+  const groups = groupList();
+  const content = $('pContent');
+
+  if (!groups.length) {
+    const filtered = state.q || state.filterSlug !== 'all';
+    content.innerHTML = `
+      <div class="empty">
+        <div class="big">${filtered ? '🔍' : '📄'}</div>
+        <p>${filtered ? '没有匹配的网站' : '还没有发布任何网站'}</p>
+        ${filtered ? '<button id="pReset">清空筛选条件</button>' : ''}
+      </div>`;
+    const reset = $('pReset');
+    if (reset) reset.addEventListener('click', () => {
+      state.q = ''; state.filterSlug = 'all'; $('pSearch').value = ''; syncUrl(); renderPortal();
+    });
+    return;
+  }
+
+  content.innerHTML = groups.map((g) => `
+    <section class="cat-group" aria-labelledby="g-${esc(g.key)}">
+      <div class="cat-head">
+        <span class="dot" style="width:9px;height:9px;border-radius:3px;background:${g.color[0]}"></span>
+        <h2 id="g-${esc(g.key)}">${esc(g.name)}</h2>
+        <span class="count">${g.sites.length}</span>
+        <span class="bar"></span>
+      </div>
+      <div class="grid">${g.sites.map((s) => card(s, g.color)).join('')}</div>
+    </section>`).join('');
+}
+
+/* URL 状态：?c=<slug>&q=<词>（file:// 下 replaceState 会抛，包一层） */
+function syncUrl() {
+  try {
+    const u = new URL(location.href);
+    state.filterSlug === 'all' ? u.searchParams.delete('c') : u.searchParams.set('c', state.filterSlug);
+    state.q ? u.searchParams.set('q', state.q) : u.searchParams.delete('q');
+    history.replaceState(null, '', u);
+  } catch { /* file:// 环境忽略 */ }
+}
+function readUrl() {
+  try {
+    const u = new URL(location.href);
+    const c = u.searchParams.get('c');
+    const q = u.searchParams.get('q');
+    if (c) state.filterSlug = c;
+    if (q) { state.q = q; $('pSearch').value = q; }
+  } catch { /* ignore */ }
+}
+
+/* ============================================================
+   管理页渲染
+   ============================================================ */
+function renderCatList() {
+  const rows = sortedCats().map((c, i, arr) => {
+    const n = countOf(c.id);
+    const confirming = state.confirmDel === c.id;
+    if (confirming) {
+      const all = state.sites.filter((s) => s.categoryId === c.id).length;
+      const hid = all - n;
+      return `
+        <div class="cat-row" data-cat="${c.id}">
+          <div class="cat-confirm">
+            <span>删除「${esc(c.name)}」后，<b>${all} 个站点</b>将移入「未分类」${hid ? `（其中 ${hid} 个已在门户隐藏）` : ''}，站点本身不受影响。</span>
+            <span class="grow"></span>
+            <button class="btn danger" data-cat-confirm="${c.id}">确认删除</button>
+            <button class="btn" data-cat-cancel="${c.id}">取消</button>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="cat-row" data-cat="${c.id}">
+        <span class="grip" title="拖动排序（原型用 ↑↓ 演示）">⠿</span>
+        <span class="swatch" style="background:${PALETTE[c.color % PALETTE.length][0]}"></span>
+        <input class="cat-name" value="${esc(c.name)}" data-cat-name="${c.id}" maxlength="20" aria-label="分类名称" />
+        <span class="slug">?c=${esc(c.slug)}</span>
+        <span class="n">${n} 个站点</span>
+        <span class="acts">
+          <button class="icon-btn" data-cat-up="${c.id}" ${i === 0 ? 'disabled' : ''} title="上移">↑</button>
+          <button class="icon-btn" data-cat-down="${c.id}" ${i === arr.length - 1 ? 'disabled' : ''} title="下移">↓</button>
+          <button class="icon-btn danger" data-cat-del="${c.id}" title="删除">✕</button>
+        </span>
+      </div>`;
+  }).join('');
+
+  const nUncat = countOf(null);
+  const sysRow = `
+    <div class="cat-row">
+      <span class="grip" style="opacity:.25">⠿</span>
+      <span class="swatch" style="background:${UNCAT_COLOR[0]}"></span>
+      <span style="font-size:14px; padding:5px 8px; color:#aab2c5">未分类</span>
+      <span class="slug">?c=__none</span>
+      <span class="n">${nUncat} 个站点</span>
+      <span class="acts" style="opacity:1"><span class="sys">系统</span></span>
+    </div>`;
+
+  $('catList').innerHTML = (rows || '<div class="hint" style="margin:0 0 6px">还没有分类，先建一个。</div>') + sysRow;
+  $('catBadge').textContent = `${state.categories.length} 个分类`;
+
+  // 改名
+  $('catList').querySelectorAll('[data-cat-name]').forEach((inp) => {
+    const save = () => {
+      const c = catById(inp.dataset.catName);
+      const v = inp.value.trim().slice(0, 20);
+      if (!c) return;
+      if (!v) { inp.value = c.name; return; }
+      if (v === c.name) return;
+      if (state.categories.some((x) => x.id !== c.id && x.name === v)) {
+        toast('已存在同名分类'); inp.value = c.name; return;
+      }
+      c.name = v;
+      toast(`已改名为「${v}」`);
+      renderAll();
+    };
+    inp.addEventListener('blur', save);
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+      if (e.key === 'Escape') { inp.value = catById(inp.dataset.catName).name; inp.blur(); }
+    });
+  });
+
+  // 排序
+  $('catList').querySelectorAll('[data-cat-up],[data-cat-down]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.catUp || btn.dataset.catDown;
+      const dir = btn.dataset.catUp ? -1 : 1;
+      const arr = sortedCats();
+      const i = arr.findIndex((c) => c.id === id);
+      const j = i + dir;
+      if (j < 0 || j >= arr.length) return;
+      const a = arr[i], b = arr[j];
+      [a.order, b.order] = [b.order, a.order];
+      renderAll();
+    });
+  });
+
+  // 删除（二次确认）
+  $('catList').querySelectorAll('[data-cat-del]').forEach((btn) => {
+    btn.addEventListener('click', () => { state.confirmDel = btn.dataset.catDel; renderCatList(); });
+  });
+  $('catList').querySelectorAll('[data-cat-cancel]').forEach((btn) => {
+    btn.addEventListener('click', () => { state.confirmDel = null; renderCatList(); });
+  });
+  $('catList').querySelectorAll('[data-cat-confirm]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.catConfirm;
+      const cat = catById(id);
+      const moved = state.sites.filter((s) => s.categoryId === id);
+      moved.forEach((s) => (s.categoryId = null));
+      state.categories = state.categories.filter((c) => c.id !== id);
+      if (state.filterSlug === cat.slug) state.filterSlug = 'all';
+      state.confirmDel = null;
+      toast(`已删除「${cat.name}」，${moved.length} 个站点移入未分类`);
+      renderAll();
+    });
+  });
+}
+
+function catOptions(selectedId, withAll) {
+  const opts = withAll ? [`<option value="all"${selectedId === 'all' ? ' selected' : ''}>全部分类</option>`] : [];
+  for (const c of sortedCats()) {
+    opts.push(`<option value="${c.id}"${selectedId === c.id ? ' selected' : ''}>${esc(c.name)}</option>`);
+  }
+  opts.push(`<option value="__none"${selectedId === '__none' || selectedId === null ? ' selected' : ''}>未分类</option>`);
+  return opts.join('');
+}
+
+function filteredSites() {
+  const q = state.adminQ.trim().toLowerCase();
+  let list = state.sites.slice();
+  if (state.adminFilter !== 'all') {
+    list = list.filter((s) => (state.adminFilter === '__none' ? !s.categoryId : s.categoryId === state.adminFilter));
+  }
+  if (q) list = list.filter((s) => (s.name + ' ' + catName(s.categoryId)).toLowerCase().includes(q));
+  return list;
+}
+
+function syncSelAll() {
+  const ids = filteredSites().map((s) => s.id);
+  $('selAll').checked = ids.length > 0 && ids.every((id) => state.selected.has(id));
+}
+
+function renderBulkBar() {
+  $('bulkbar').classList.toggle('hidden', state.selected.size === 0);
+  $('bulkCount').textContent = state.selected.size;
+  const cur = $('bulkTarget').value;
+  $('bulkTarget').innerHTML = catOptions(null);
+  if (cur) $('bulkTarget').value = cur;
+}
+
+function siteRow(s) {
+  const cat = catById(s.categoryId);
+  const color = catColor(cat);
+  const picked = state.selected.has(s.id);
+  return `
+    <div class="site ${picked ? 'picked' : ''}" data-site="${s.id}">
+      <input type="checkbox" data-pick="${s.id}" ${picked ? 'checked' : ''} aria-label="选择 ${esc(s.name)}" />
+      <div class="site-main">
+        <div class="site-name">${esc(s.name)}${s.hidden ? '<span class="hide-badge">已隐藏</span>' : ''}</div>
+        <a class="site-url" href="#" onclick="return false">http://172.31.168.41:${s.port}/</a>
+        <div class="site-meta">${esc(fmt(s.updatedAt))} · 端口 ${s.port}</div>
+      </div>
+      <div class="cat-cell">
+        <span class="swatch" style="background:${color[0]}"></span>
+        <select data-move="${s.id}" aria-label="分类">${catOptions(s.categoryId)}</select>
+      </div>
+      <div class="site-actions">
+        <button class="btn">复制</button>
+        <button class="btn">更新</button>
+        <button class="btn">删除</button>
+      </div>
+    </div>`;
+}
+
+function renderSites() {
+  const list = filteredSites();
+  $('siteCount').textContent = `共 ${state.sites.length} 个网站${list.length !== state.sites.length ? ` · 筛出 ${list.length}` : ''}`;
+  $('adminFilterCat').innerHTML = catOptions(state.adminFilter, true);
+
+  const wrap = $('list');
+  wrap.innerHTML = list.length
+    ? list.map(siteRow).join('')
+    : '<div class="empty" style="background:#16191f;border-color:#272c36;color:#8a92a6">当前筛选下没有站点</div>';
+
+  // 改分类：只更新该行 + 左上计数 + 门户，不重建整张表（否则焦点/勾选态会丢）
+  wrap.querySelectorAll('[data-move]').forEach((sel) => {
+    sel.addEventListener('change', () => {
+      const s = state.sites.find((x) => x.id === sel.dataset.move);
+      if (!s) return;
+      s.categoryId = sel.value === '__none' ? null : sel.value;
+      const sw = sel.closest('.site')?.querySelector('.cat-cell .swatch');
+      if (sw) sw.style.background = catColor(catById(s.categoryId))[0];
+      toast(`「${s.name}」已移至「${catName(s.categoryId)}」`);
+      renderCatList();
+      renderPortal();
+      syncSelAll();
+    });
+  });
+
+  // 勾选：局部切换 class，不重建
+  wrap.querySelectorAll('[data-pick]').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      const id = cb.dataset.pick;
+      if (cb.checked) state.selected.add(id); else state.selected.delete(id);
+      cb.closest('.site')?.classList.toggle('picked', cb.checked);
+      renderBulkBar();
+      syncSelAll();
+    });
+  });
+
+  renderBulkBar();
+  syncSelAll();
+}
+
+function renderAdmin() {
+  renderCatList();
+  renderSites();
+}
+
+function renderAll() {
+  renderPortal();
+  renderAdmin();
+}
+
+/* ============================================================
+   事件绑定
+   ============================================================ */
+$('pSearch').addEventListener('input', (e) => {
+  state.q = e.target.value;
+  syncUrl();
+  renderPortal();
+});
+
+$('adminSearch').addEventListener('input', (e) => {
+  state.adminQ = e.target.value;
+  renderSites();
+});
+
+// 委托：筛选下拉每次 render 会重建 option，委托比重复绑定稳
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'adminFilterCat') {
+    state.adminFilter = e.target.value;
+    renderSites();
+  }
+});
+
+$('selAll').addEventListener('change', (e) => {
+  filteredSites().forEach((s) => (e.target.checked ? state.selected.add(s.id) : state.selected.delete(s.id)));
+  renderSites();
+});
+
+$('bulkApply').addEventListener('click', () => {
+  const target = $('bulkTarget').value;
+  const catId = target === '__none' ? null : target;
+  const n = state.selected.size;
+  state.selected.forEach((id) => {
+    const s = state.sites.find((x) => x.id === id);
+    if (s) s.categoryId = catId;
+  });
+  state.selected.clear();
+  toast(`已将 ${n} 个站点移至「${catName(catId)}」`);
+  renderAll();
+});
+
+$('bulkClear').addEventListener('click', () => {
+  state.selected.clear();
+  renderSites();
+});
+
+function addCategory() {
+  const inp = $('catNewName');
+  const name = inp.value.trim().slice(0, 20);
+  if (!name) return;
+  if (state.categories.some((c) => c.name === name)) { toast('已存在同名分类'); return; }
+  const no = state.nextCatNo++;
+  state.categories.push({
+    id: 'c' + no,
+    slug: 'cat-' + no,
+    name,
+    order: Math.max(0, ...state.categories.map((c) => c.order)) + 10,
+    color: no % PALETTE.length,
+  });
+  inp.value = '';
+  toast(`已创建分类「${name}」`);
+  renderAll();
+}
+$('catAddBtn').addEventListener('click', addCategory);
+$('catNewName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } });
+
+/* 视图切换 */
+document.querySelectorAll('[data-view]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    state.view = btn.dataset.view;
+    document.querySelectorAll('[data-view]').forEach((b) => b.classList.toggle('active', b === btn));
+    $('view-portal').classList.toggle('hidden', state.view !== 'portal');
+    $('view-admin').classList.toggle('hidden', state.view !== 'admin');
+    document.body.classList.toggle('admin', state.view === 'admin');
+    window.scrollTo(0, 0);
+  });
+});
+
+$('annot').addEventListener('change', (e) => {
+  document.body.classList.toggle('annot-on', e.target.checked);
+});
+
+/* 启动 */
+readUrl();
+renderAll();
+</script>
+</body>
+</html>
