@@ -8,6 +8,7 @@
   :root {
     --bg: #0e1014; --panel: #16191f; --panel-2: #1b1f27; --border: #272c36;
     --text: #e7e9ef; --muted: #8a92a6; --accent: #4f7cff; --ok: #35d07f; --err: #ff6b6b;
+    color-scheme: dark;   /* 原生控件（勾选框/下拉弹层/滚动条）跟随深色 */
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -39,7 +40,7 @@
   .err-text { color: var(--err); font-size: 13px; min-height: 20px; margin-top: 12px; }
 
   /* ---------- 主界面 ---------- */
-  #app { max-width: 860px; margin: 0 auto; padding: 36px 20px 72px; }
+  #app { max-width: 1040px; margin: 0 auto; padding: 36px 20px 72px; }
   .top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 22px; }
   .top h1 { font-size: 20px; margin: 0; font-weight: 600; }
   .top button {
@@ -122,13 +123,28 @@
   }
   .site-url:hover { text-decoration: underline; }
   .site-meta { color: var(--muted); font-size: 12px; margin-top: 5px; }
-  .site-warn {
-    margin-top: 8px; font-size: 12.5px; color: #ffc061;
-    background: rgba(255,192,97,.08); border: 1px solid rgba(255,192,97,.22);
-    border-radius: 7px; padding: 7px 10px; line-height: 1.5;
+  /* 警告：默认只留一个芯片，保证每行高度一致；点开才展开详情 */
+  .warn-chip {
+    display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+    background: rgba(255, 192, 97, .12); border: 1px solid rgba(255, 192, 97, .35);
+    color: #ffc061; border-radius: 999px; padding: 1px 8px; font-size: 11.5px;
+    line-height: 1.5; cursor: pointer; font-family: inherit;
+    transition: background .15s, border-color .15s;
   }
-  .site-warn b { color: #ffd089; font-weight: 600; }
-  .site-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .warn-chip:hover { background: rgba(255, 192, 97, .22); border-color: rgba(255, 192, 97, .55); }
+  .warn-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .warn-panel {
+    flex: 0 0 100%; order: 3; margin-top: 10px; padding: 12px 14px;
+    background: rgba(255, 192, 97, .06); border: 1px solid rgba(255, 192, 97, .25);
+    border-radius: 10px; display: flex; flex-direction: column; gap: 7px;
+  }
+  .warn-item { display: flex; gap: 8px; font-size: 12.5px; line-height: 1.55; color: #ffd089; }
+  .warn-item .idx {
+    flex-shrink: 0; width: 16px; color: #ffc061; opacity: .7;
+    font-variant-numeric: tabular-nums; text-align: right;
+  }
+  .site-actions { display: flex; gap: 7px; flex-shrink: 0; }
+  .site-actions .btn { padding: 7px 11px; font-size: 12.5px; }
   .btn {
     background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
     border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; white-space: nowrap;
@@ -187,24 +203,39 @@
   .sites-head .head-left { display: flex; align-items: center; gap: 14px; }
   .sites-head .head-right { display: flex; align-items: center; gap: 8px; }
   .pick-all { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
-  .pick-all input { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; }
+  /* ---------- 勾选框：自绘，跟深色主题一致 ---------- */
+  input[type="checkbox"] {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; margin: 0; flex-shrink: 0; position: relative;
+    border: 1.5px solid #3a4250; border-radius: 5px; background: #0d0f14;
+    cursor: pointer; transition: background .15s, border-color .15s, box-shadow .15s;
+  }
+  input[type="checkbox"]:hover { border-color: #4d5770; background: #12161d; }
+  input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+  input[type="checkbox"]:checked::after {
+    content: ''; position: absolute; left: 4.5px; top: 1px;
+    width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+  input[type="checkbox"]:indeterminate { background: rgba(79, 124, 255, .45); border-color: var(--accent); }
+  input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .pick-all input { cursor: pointer; }
   .sites-head input[type="search"],
   .sites-head select, .bulkbar select {
     background: #0d0f14; border: 1px solid var(--border); color: var(--text);
     border-radius: 8px; padding: 7px 10px; font-size: 13px; outline: none; cursor: pointer;
   }
   .sites-head input[type="search"] { width: 150px; cursor: text; }
-  .sites-head .btn { padding: 7px 12px; font-size: 12.5px; }
   .sites-head input[type="search"]:focus,
   .sites-head select:focus, .bulkbar select:focus { border-color: var(--accent); }
 
-  .site input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
-  .site.picked { border-color: var(--accent); background: #171c28; }
+
+  .site.picked { border-color: rgba(79, 124, 255, .75); background: #171c28; }
   .site-head-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
   .site-emoji {
     width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center; font-size: 15px; line-height: 1;
-    border: 1px solid transparent; cursor: pointer; padding: 0; font-family: inherit;
+    border: 0; cursor: pointer; padding: 0; font-family: inherit;
     transition: box-shadow .15s, transform .15s;
   }
   .site-emoji:hover { transform: scale(1.08); box-shadow: 0 0 0 2px rgba(79, 124, 255, .35); }
@@ -232,14 +263,16 @@
   }
   .emoji-input:focus { border-color: var(--accent); }
   .emoji-row .btn { padding: 6px 11px; font-size: 12.5px; }
-  .site-head-row .site-name { flex: 1; min-width: 0; margin-bottom: 0; }
+  .site-head-row .site-name { flex: 0 1 auto; min-width: 0; margin-bottom: 0; }
   .site-head-row input.rename { flex: 1; min-width: 0; width: auto; }
+  /* 分类下拉固定贴在头部行的右端（名字与操作按钮之间），各行对齐成同一列 */
+  .site-head-row .cat-cell { margin-left: auto; padding-left: 12px; }
   .cat-cell { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   .cat-cell .swatch { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
   .cat-cell select {
     background: transparent; border: 1px solid transparent; color: #aab2c5;
     border-radius: 6px; padding: 3px 5px; font-size: 12.5px; cursor: pointer; outline: none;
-    max-width: 150px;
+    max-width: 120px;
   }
   .cat-cell select:hover { border-color: var(--border); background: #0d0f14; }
   .cat-cell select:focus { border-color: var(--accent); background: #0d0f14; }
@@ -327,7 +360,6 @@
       <label class="pick-all"><input type="checkbox" id="selAll" /> 全选</label>
     </div>
     <div class="head-right">
-      <button class="btn" id="reiconBtn" title="按站点名称重新猜一遍 emoji 图标（不会重复）">重设图标</button>
       <input type="search" id="adminSearch" placeholder="搜索站点 / 分类 / 端口…" autocomplete="off" />
       <select id="adminFilterCat" aria-label="按分类筛选"></select>
     </div>
@@ -355,6 +387,7 @@ let adminQ = '';
 let adminFilter = 'all';
 let confirmDel = null;
 let editingEmoji = null;
+let warnOpenId = null;
 let editingId = null;
 let editingPortId = null;
 let PORT_MIN = 10000;
@@ -383,6 +416,17 @@ async function loadCategories() {
 }
 
 /** 当前筛选条件下的站点（搜索 + 分类） */
+/** 站点的提示详情（默认折叠，保证每行高度一致） */
+function warnPanelHtml(s) {
+  if (warnOpenId !== s.id) return '';
+  const warns = Array.isArray(s.warnings) ? s.warnings : [];
+  if (!warns.length) return '';
+  return `
+    <div class="warn-panel">
+      ${warns.map((w, i) => `<div class="warn-item"><span class="idx">${i + 1}</span><span>${esc(w)}</span></div>`).join('')}
+    </div>`;
+}
+
 /** 改图标：set / random / guess 三种模式，失败（如撞图标）时保留面板让用户重选 */
 async function setEmoji(id, payload) {
   try {
@@ -663,7 +707,7 @@ function render() {
   list.innerHTML = rows.map((s) => {
     const nameHtml = editingId === s.id
       ? `<input class="rename" data-rename="${s.id}" value="${esc(s.name)}" />`
-      : `<div class="site-name">${esc(s.name)}</div>`;
+      : `<div class="site-name" title="${esc(s.name)}">${esc(s.name)}</div>`;
     const status = s.published ? fmtTime(s.updatedAt) : '尚未发布内容';
     const portHtml = editingPortId === s.id
       ? `<div class="port-edit">
@@ -678,26 +722,25 @@ function render() {
         <span class="swatch" style="background:${catColor(catById(s.categoryId))[0]}"></span>
         <select data-move="${s.id}" aria-label="「${esc(s.name)}」的分类">${catOptions(s.categoryId)}</select>
       </span>`;
-    const warnHtml = (s.warnings && s.warnings.length)
-      ? `<div class="site-warn" title="${esc(s.warnings.join('\n'))}">
-           ⚠️ <b>可能有问题：</b>${esc(s.warnings[0])}${s.warnings.length > 1 ? ` （共 ${s.warnings.length} 项，悬停查看全部）` : ''}
-         </div>`
+    const warns = Array.isArray(s.warnings) ? s.warnings : [];
+    const warnChip = warns.length
+      ? `<button class="warn-chip" data-warn-open="${s.id}" title="${esc(warns.join('\n'))}" aria-expanded="${warnOpenId === s.id}" aria-label="查看「${esc(s.name)}」的 ${warns.length} 条提示">⚠ ${warns.length}</button>`
       : '';
     return `
       <div class="site${selected.has(s.id) ? ' picked' : ''}" data-id="${s.id}">
         <input type="checkbox" data-pick="${s.id}" aria-label="选择「${esc(s.name)}」"${selected.has(s.id) ? ' checked' : ''} />
         <div class="site-main">
-          <div class="site-head-row"><button class="site-emoji" data-emoji-open="${s.id}" title="更改图标" aria-label="更改「${esc(s.name)}」的图标" style="background:linear-gradient(135deg,${catColor(catById(s.categoryId))[0]}2e,${catColor(catById(s.categoryId))[1]}17);border-color:${catColor(catById(s.categoryId))[0]}55">${esc(s.emoji || '·')}</button>${nameHtml}${catCell}</div>
+          <div class="site-head-row"><button class="site-emoji" data-emoji-open="${s.id}" title="更改图标" aria-label="更改「${esc(s.name)}」的图标" style="background:linear-gradient(135deg,${catColor(catById(s.categoryId))[0]}2e,${catColor(catById(s.categoryId))[1]}17)">${esc(s.emoji || '·')}</button>${nameHtml}${warnChip}${catCell}</div>
           <a class="site-url" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a>
           ${portHtml}
-          ${warnHtml}
         </div>
+        ${warnPanelHtml(s)}
         ${emojiPanelHtml(s)}
         <div class="site-actions">
-          <button class="btn" data-copy="${esc(s.url)}">复制链接</button>
+          <button class="btn" data-copy="${esc(s.url)}" title="复制访问链接">复制</button>
           <button class="btn" data-update="${s.id}">更新</button>
           <button class="btn" data-port="${s.id}">改端口</button>
-          <button class="btn" data-toggle="${s.id}" title="控制是否在门户首页展示">${s.hidden ? '在门户显示' : '在门户隐藏'}</button>
+          <button class="btn" data-toggle="${s.id}" title="${s.hidden ? '点击后在门户首页显示' : '点击后不在门户首页展示（直连仍可访问）'}">${s.hidden ? '门户显示' : '门户隐藏'}</button>
           <button class="btn" data-edit="${s.id}">改名</button>
           <button class="btn danger" data-del="${s.id}">删除</button>
         </div>
@@ -836,6 +879,14 @@ function render() {
       } catch (e) {
         toast(`❌ ${e.message}`, 'err');
       }
+    });
+  });
+
+  // 警告芯片：展开/收起该站点的提示详情（再次点击或点开别的站点会收起）
+  list.querySelectorAll('[data-warn-open]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      warnOpenId = warnOpenId === btn.dataset.warnOpen ? null : btn.dataset.warnOpen;
+      render();
     });
   });
 
@@ -1123,22 +1174,6 @@ $('bulkApply').addEventListener('click', async () => {
 $('bulkClear').addEventListener('click', () => {
   selected.clear();
   render();
-});
-
-$('reiconBtn').addEventListener('click', async () => {
-  const btn = $('reiconBtn');
-  btn.disabled = true;
-  try {
-    const r = await api('POST', '/api/sites/reicon');
-    const { sites: fresh } = await api('GET', '/api/sites');
-    sites = fresh;
-    render();
-    toast(`已按名称重设 ${r.sites.length} 个图标`, 'ok');
-  } catch (e) {
-    toast(`❌ ${e.message}`, 'err');
-  } finally {
-    btn.disabled = false;
-  }
 });
 
 $('catAddBtn').addEventListener('click', addCategory);
