@@ -18,7 +18,7 @@
 | 项 | 值 |
 |----|----|
 | 管理后台 | http://{{HOST}}:{{ADMIN_PORT}}/ |
-| 门户首页（公开，无需登录） | http://{{HOST}}:{{PORTAL_PORT}}/ |
+| 门户首页（公开，无需登录） | http://{{HOST}}:{{PORTAL_PORT}}/，左侧分类导航 + 右侧站点卡片 |
 | 站点访问地址 | http://{{HOST}}:<站点 port>/ |
 | 可手动指定的端口范围 | {{PORT_MIN}} - {{PORT_MAX}}（管理员/门户端口已占用） |
 | 自动分配端口池 | {{POOL_START}} - {{POOL_END}} |
@@ -77,7 +77,8 @@ curl -i -X POST http://{{HOST}}:{{ADMIN_PORT}}/api/login \
   同类多站自动换变体（📊→📈→📉），猜不到才随机取空闲图标；**全局不重复**，老站点会自动补齐。
   想改图标请用 `POST /api/sites/:id/emoji`（见 4.5），不要直接改 data.json
 - `emojiCandidates` 是按该站点名推荐的同族图标（只读，供你在 set 时挑选）
-- `warnings` 是上传时发现的潜在问题（例如引用了站点目录之外的文件）
+- `warnings` 是上传时发现的潜在问题（例如引用了站点目录之外的文件）；管理页默认折叠成一个
+  `⚠ N` 的芯片，点开才展开详情
 
 ---
 
@@ -150,7 +151,7 @@ curl -s -b cookie.txt -X PATCH http://{{HOST}}:{{ADMIN_PORT}}/api/sites/<id> \
 
 一次 PATCH 可以同时带 `name` / `port` / `hidden` / `categoryId`。
 
-### 4.5 分类（门户按分类分组）
+### 4.5 分类（门户左侧导航按分类筛选）
 
 ```bash
 # 分类列表：count = 门户可见站点数，allCount = 含隐藏站点
