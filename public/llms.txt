@@ -73,7 +73,10 @@ curl -i -X POST http://{{HOST}}:{{ADMIN_PORT}}/api/login \
 - `published=false` 表示站点已创建但还没上传内容
 - `hidden=true` 表示不在门户首页展示（直连 URL 仍可访问），与分类是正交的两件事
 - `categoryId=null` + `category=null` 表示未分类
-- `emoji` 是站点图标：服务端新建站点时随机分配、**全局不重复**，老站点会自动补齐；属于展示字段，不要尝试修改
+- `emoji` 是站点图标：服务端按站点名关键词猜测（如「报表」→📊、「官网」→🏠、「测试」→🧪），
+  同类多站自动换变体（📊→📈→📉），猜不到才随机取空闲图标；**全局不重复**，老站点会自动补齐。
+  想改图标请用 `POST /api/sites/:id/emoji`（见 4.5），不要直接改 data.json
+- `emojiCandidates` 是按该站点名推荐的同族图标（只读，供你在 set 时挑选）
 - `warnings` 是上传时发现的潜在问题（例如引用了站点目录之外的文件）
 
 ---
@@ -96,6 +99,8 @@ curl -i -X POST http://{{HOST}}:{{ADMIN_PORT}}/api/login \
 | 分类改名 | `PATCH /api/categories/:id` | body `{"name":"新名称"}` |
 | 分类排序 | `PUT /api/categories/order` | body `{"ids":[...]}`，按数组顺序重排 |
 | 删除分类 | `DELETE /api/categories/:id` | **禁止使用，见文首规则**（会把站点移入未分类） |
+| 改单个站点图标 | `POST /api/sites/:id/emoji` | body `{"mode":"set","emoji":"🚀"}` / `{"mode":"random"}` / `{"mode":"guess"}`；撞图标返回 409 |
+| 按名称重设图标 | `POST /api/sites/reicon` | 全部站点按名称重新猜图标，返回 `{ok, sites:[{id,name,emoji}]}`；纯展示字段，无破坏性 |
 | 复制链接 | —（纯前端） | 对应站点的 `url` 字段 |
 | 删除 | `DELETE /api/sites/:id` | **禁止使用，见文首规则** |
 
@@ -165,6 +170,18 @@ curl -s -b cookie.txt -X PATCH http://{{HOST}}:{{ADMIN_PORT}}/api/sites/<id> \
 curl -s -b cookie.txt -X POST http://{{HOST}}:{{ADMIN_PORT}}/api/sites/batch-category \
   -H 'Content-Type: application/json' -d '{"ids":["<id1>","<id2>"],"categoryId":"884c372a"}'
 # 200 {"ok":true,"moved":2,"categoryId":"884c372a"}
+
+# 改单个站点的图标（三种模式，任选其一）
+#   set    —— 指定 emoji；若已被别的站点占用会返回 409
+#   random —— 随机一个当前没被占用的图标
+#   guess  —— 按站点名重新猜（报表→📊、官网→🏠、测试→🧪…）
+curl -s -b cookie.txt -X POST http://{{HOST}}:{{ADMIN_PORT}}/api/sites/<id>/emoji \
+  -H 'Content-Type: application/json' -d '{"mode":"set","emoji":"🚀"}'
+curl -s -b cookie.txt -X POST http://{{HOST}}:{{ADMIN_PORT}}/api/sites/<id>/emoji \
+  -H 'Content-Type: application/json' -d '{"mode":"random"}'
+
+# 按名称重设全部图标（改名后想让图标跟着名字走时）
+curl -s -b cookie.txt -X POST http://{{HOST}}:{{ADMIN_PORT}}/api/sites/reicon
 
 # 重排门户里的分组顺序（一次提交完整顺序）
 curl -s -b cookie.txt -X PUT http://{{HOST}}:{{ADMIN_PORT}}/api/categories/order \

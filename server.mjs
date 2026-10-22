@@ -172,17 +172,86 @@ const EMOJI_POOL = [...new Set([
 ])];
 
 /** 随机挑一个没被占用的图标；池子用尽（站点数 > 图标数）时才退化为重复 */
-function pickEmoji() {
-  const used = new Set(db.sites.map((s) => s.emoji).filter(Boolean));
+function pickEmoji(excludeId = null) {
+  const used = new Set(db.sites.filter((s) => s.id !== excludeId).map((s) => s.emoji).filter(Boolean));
   const free = EMOJI_POOL.filter((e) => !used.has(e));
   const list = free.length ? free : EMOJI_POOL;
   return list[crypto.randomInt(list.length)];
 }
 
+/**
+ * 按站点名猜图标：关键词命中就用对应图标，命中不了才随机。
+ * 每条规则的 emojis 是同类变体，靠前的优先——多个站点都叫「xx报表」时不会撞同一个。
+ * 顺序即优先级：更具体的规则放前面（「报表」优先于「数据」，「文档」优先于「组件」）。
+ */
+const EMOJI_RULES = [
+  // 顺序即优先级：越靠前越具体（「招聘主页」要命中招聘而不是官网）
+  { re: /测试|test|qa|回归|内测|beta|压测/i, emojis: ['🧪', '🔬', '🧫'] },
+  { re: /告警|报警|alert/i, emojis: ['🚨', '🔔', '📣'] },
+  { re: /报表|看板|统计|数据|图表|dash|指标|bi\b/i, emojis: ['📊', '📈', '📉', '🧮'] },
+  { re: /招聘|人事|员工|组织|hr\b/i, emojis: ['🏢', '👥', '📋'] },
+  { re: /活动|促销|大促|双十一|双11|预热|h5|banner|营销/i, emojis: ['🎉', '🎁', '🎈', '🎊'] },
+  { re: /视觉|设计|配色|figma|ui\b|ux\b/i, emojis: ['🎨', '🖌️', '🖼️'] },
+  { re: /文档|手册|指南|规范|说明|wiki|doc|api/i, emojis: ['📚', '📖', '📄', '📑'] },
+  { re: /官网|主页|首页|门户|landing|home|网站/i, emojis: ['🏠', '🌐', '🏛️'] },
+  { re: /工单|审批|流程|任务|订单|workflow/i, emojis: ['🎫', '📝', '🗳️'] },
+  { re: /监控|运维|状态|health/i, emojis: ['📈', '🩺', '🖥️'] },
+  { re: /组件|控件|sdk|widget|demo|库\b/i, emojis: ['🧩', '📦', '🧱'] },
+  { re: /支付|结算|账单|财务|发票|收银/i, emojis: ['💳', '💰', '🧾'] },
+  { re: /零售|门店|pos|商城|电商|商品/i, emojis: ['🛒', '🏪', '🧾'] },
+  { re: /搜索|检索|查询|search/i, emojis: ['🔍', '🔎'] },
+  { re: /网关|接口|服务|后端|proxy|gateway|middleware/i, emojis: ['🌐', '🔗', '🛰️'] },
+  { re: /配置|设置|开关|灰度|参数|config/i, emojis: ['⚙️', '🎛️', '🔧'] },
+  { re: /权限|风控|安全|审计|加密|auth/i, emojis: ['🛡️', '🔐', '🔒'] },
+  { re: /邮件|通知|消息|提醒|notify|message/i, emojis: ['📮', '🔔', '✉️'] },
+  { re: /视频|直播|录屏|video/i, emojis: ['🎬', '📹', '🎥'] },
+  { re: /音乐|音频|播客|audio|music/i, emojis: ['🎵', '🎧', '🎼'] },
+  { re: /图片|相册|素材|图库|image|photo/i, emojis: ['🖼️', '📷', '🎞️'] },
+  { re: /日历|排班|值班|日程|schedule|calendar/i, emojis: ['📅', '🗓️', '🕒'] },
+  { re: /归档|备份|历史|周报|月报|复盘|总结|archive/i, emojis: ['🗂️', '📦', '🗄️'] },
+  { re: /地图|定位|地址|map/i, emojis: ['🗺️', '📍', '🧭'] },
+  { re: /小程序|移动端|app\b|mobile/i, emojis: ['📱', '📲'] },
+  { re: /日志|log/i, emojis: ['📜', '🗒️'] },
+  { re: /性能|基准|bench/i, emojis: ['⚡', '🚀'] },
+];
+
+/** 名字 → 候选图标（命中规则时按优先级返回变体列表，未命中返回空数组） */
+function iconCandidates(name) {
+  const text = String(name || '');
+  for (const rule of EMOJI_RULES) if (rule.re.test(text)) return rule.emojis;
+  return [];
+}
+
+/** 按名字挑一个没被占用的图标：优先猜测结果 → 同类变体 → 随机空闲 */
+function pickEmojiFor(name, excludeId = null) {
+  const used = new Set(db.sites.filter((s) => s.id !== excludeId).map((s) => s.emoji).filter(Boolean));
+  for (const e of iconCandidates(name)) {
+    if (!used.has(e)) return e;
+  }
+  return pickEmoji(excludeId);
+}
+
+/** 单个 emoji 的合法性校验（按码点计数，兼容 VS16 序列） */
+function validateEmoji(raw) {
+  const emoji = String(raw ?? '').trim();
+  if (!emoji) return { error: '请提供图标' };
+  if ([...emoji].length > 8) return { error: '图标过长（最多 8 个字符）' };
+  if (/[\u0000-\u001f\u007f]/.test(emoji)) return { error: '图标包含非法字符' };
+  return { emoji };
+}
+
+/** 按名称重设全部图标（改名后想同步图标时用）；先清空再逐个分配，保证不重复 */
+function reiconAll() {
+  for (const s of db.sites) s.emoji = null;
+  for (const s of db.sites) s.emoji = pickEmojiFor(s.name);
+  saveDB();
+  return db.sites.map((s) => ({ id: s.id, name: s.name, emoji: s.emoji }));
+}
+
 /** 老数据补齐图标（不重复）；已全部有图标时是一次 O(n) 的短路检查 */
 function ensureEmojis() {
   if (db.sites.every((s) => s.emoji)) return;
-  for (const s of db.sites) if (!s.emoji) s.emoji = pickEmoji();
+  for (const s of db.sites) if (!s.emoji) s.emoji = pickEmojiFor(s.name);
   saveDB();
 }
 
@@ -256,6 +325,7 @@ function view(site, req) {
     id: site.id,
     name: site.name,
     emoji: site.emoji || null,
+    emojiCandidates: iconCandidates(site.name),
     port: site.port,
     url: `http://${hostOf(req)}:${site.port}/`,
     status: site.status,
@@ -805,7 +875,7 @@ const adminServer = http.createServer(async (req, res) => {
       const site = {
         id: crypto.randomUUID().slice(0, 8),
         name,
-        emoji: pickEmoji(),
+        emoji: pickEmojiFor(name),
         port,
         categoryId: catById(String(body.categoryId || '')) ? String(body.categoryId) : null,
         status: 'active',
@@ -838,7 +908,7 @@ const adminServer = http.createServer(async (req, res) => {
       const site = {
         id: crypto.randomUUID().slice(0, 8),
         name: nameFromFilename(upload.filename),
-        emoji: pickEmoji(),
+        emoji: pickEmojiFor(nameFromFilename(upload.filename)),
         port,
         status: 'active',
         versions: [],
@@ -859,6 +929,38 @@ const adminServer = http.createServer(async (req, res) => {
       }
       saveDB();
       return json(res, 201, { ...view(site, req), entry: result?.entry || null, warnings: result?.warnings || [] });
+    }
+
+    // 改单个站点的图标：{mode:'set'|'random'|'guess', emoji?}
+    const emojiMatch = p.match(/^\/api\/sites\/([\w-]+)\/emoji$/);
+    if (emojiMatch && req.method === 'POST') {
+      const site = siteById(emojiMatch[1]);
+      if (!site) return json(res, 404, { error: '网站不存在' });
+      const body = await readJSON(req);
+      const mode = ['set', 'random', 'guess'].includes(body.mode) ? body.mode : 'set';
+
+      let next;
+      if (mode === 'random') {
+        next = pickEmoji(site.id);
+      } else if (mode === 'guess') {
+        next = pickEmojiFor(site.name, site.id);
+      } else {
+        const r = validateEmoji(body.emoji);
+        if (r.error) return json(res, 400, { error: r.error });
+        const owner = db.sites.find((s) => s.id !== site.id && s.emoji === r.emoji);
+        if (owner) return json(res, 409, { error: `图标 ${r.emoji} 已被「${owner.name}」使用，每个站点的图标必须唯一` });
+        next = r.emoji;
+      }
+
+      site.emoji = next;
+      saveDB();
+      return json(res, 200, view(site, req));
+    }
+
+    // 按名称重设全部图标（改名后可用；纯展示字段，无破坏性）
+    if (p === '/api/sites/reicon' && req.method === 'POST') {
+      const sites = reiconAll();
+      return json(res, 200, { ok: true, sites });
     }
 
     // 批量设置分类（必须在 idMatch 之前：正则会把 batch-category 当成站点 id）

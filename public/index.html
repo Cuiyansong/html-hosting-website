@@ -107,7 +107,7 @@
   .site {
     background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
     padding: 16px 18px; margin-bottom: 10px; display: flex; align-items: center; gap: 16px;
-    transition: border-color .15s;
+    flex-wrap: wrap; transition: border-color .15s;
   }
   .site:hover { border-color: #333a47; }
   .site-main { flex: 1; min-width: 0; }
@@ -194,6 +194,7 @@
     border-radius: 8px; padding: 7px 10px; font-size: 13px; outline: none; cursor: pointer;
   }
   .sites-head input[type="search"] { width: 150px; cursor: text; }
+  .sites-head .btn { padding: 7px 12px; font-size: 12.5px; }
   .sites-head input[type="search"]:focus,
   .sites-head select:focus, .bulkbar select:focus { border-color: var(--accent); }
 
@@ -201,10 +202,36 @@
   .site.picked { border-color: var(--accent); background: #171c28; }
   .site-head-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
   .site-emoji {
-    width: 24px; height: 24px; border-radius: 7px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center; font-size: 14px; line-height: 1;
-    border: 1px solid transparent;
+    width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 15px; line-height: 1;
+    border: 1px solid transparent; cursor: pointer; padding: 0; font-family: inherit;
+    transition: box-shadow .15s, transform .15s;
   }
+  .site-emoji:hover { transform: scale(1.08); box-shadow: 0 0 0 2px rgba(79, 124, 255, .35); }
+  .site-emoji:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* 改图标面板 */
+  .emoji-panel {
+    flex: 0 0 100%; order: 3; margin-top: 12px; padding: 14px 16px; background: #0d0f14;
+    border: 1px solid var(--border); border-radius: 10px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .emoji-row { display: flex; align-items: flex-start; gap: 10px; }
+  .emoji-label { font-size: 12px; color: var(--muted); width: 42px; flex-shrink: 0; padding-top: 7px; }
+  .emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, 30px); gap: 6px; flex: 1; }
+  .emoji-opt {
+    width: 30px; height: 30px; font-size: 16px; line-height: 1;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; padding: 0; transition: .15s;
+  }
+  .emoji-opt:hover { border-color: var(--accent); background: #202530; transform: translateY(-1px); }
+  .emoji-opt[aria-current="true"] { border-color: var(--accent); background: rgba(79, 124, 255, .16); }
+  .emoji-input {
+    width: 96px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 7px 8px; font-size: 15px; outline: none; text-align: center;
+  }
+  .emoji-input:focus { border-color: var(--accent); }
+  .emoji-row .btn { padding: 6px 11px; font-size: 12.5px; }
   .site-head-row .site-name { flex: 1; min-width: 0; margin-bottom: 0; }
   .site-head-row input.rename { flex: 1; min-width: 0; width: auto; }
   .cat-cell { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
@@ -300,6 +327,7 @@
       <label class="pick-all"><input type="checkbox" id="selAll" /> 全选</label>
     </div>
     <div class="head-right">
+      <button class="btn" id="reiconBtn" title="按站点名称重新猜一遍 emoji 图标（不会重复）">重设图标</button>
       <input type="search" id="adminSearch" placeholder="搜索站点 / 分类 / 端口…" autocomplete="off" />
       <select id="adminFilterCat" aria-label="按分类筛选"></select>
     </div>
@@ -326,6 +354,7 @@ let selected = new Set();
 let adminQ = '';
 let adminFilter = 'all';
 let confirmDel = null;
+let editingEmoji = null;
 let editingId = null;
 let editingPortId = null;
 let PORT_MIN = 10000;
@@ -354,6 +383,42 @@ async function loadCategories() {
 }
 
 /** 当前筛选条件下的站点（搜索 + 分类） */
+/** 改图标：set / random / guess 三种模式，失败（如撞图标）时保留面板让用户重选 */
+async function setEmoji(id, payload) {
+  try {
+    const site = await api('POST', `/api/sites/${id}/emoji`, payload);
+    const local = sites.find((x) => x.id === id);
+    if (local) local.emoji = site.emoji;
+    editingEmoji = null;
+    render();
+    toast(`图标已改为 ${site.emoji}`, 'ok');
+  } catch (e) {
+    toast(`❌ ${e.message}`, 'err');
+  }
+}
+
+const EMOJI_PICKER = ['🚀','🏠','📊','📈','📚','🧪','🎉','⚙️','🛡️','💳','🎫','🛒','🔍','🗂️','📅','🎨','🧩','🌐','📱','📮','🎬','🎵','🖼️','🗺️','⚡','🔔','💎','🧭'];
+
+/** 站点行的「改图标」面板（点图标块展开） */
+function emojiPanelHtml(s) {
+  if (editingEmoji !== s.id) return '';
+  const cands = Array.isArray(s.emojiCandidates) ? s.emojiCandidates : [];
+  const opt = (e) => `<button class="emoji-opt" data-emoji-set="${esc(e)}" data-id="${s.id}" aria-label="使用 ${esc(e)}"${e === s.emoji ? ' aria-current="true"' : ''}>${esc(e)}</button>`;
+  return `
+    <div class="emoji-panel">
+      ${cands.length ? `<div class="emoji-row"><span class="emoji-label">按名称</span><span class="emoji-grid">${cands.map(opt).join('')}</span></div>` : ''}
+      <div class="emoji-row"><span class="emoji-label">常用</span><span class="emoji-grid">${EMOJI_PICKER.map(opt).join('')}</span></div>
+      <div class="emoji-row">
+        <span class="emoji-label">自定义</span>
+        <input class="emoji-input" data-emoji-input="${s.id}" placeholder="粘贴 emoji" maxlength="8" aria-label="自定义图标" />
+        <button class="btn" data-emoji-apply="${s.id}">确定</button>
+        <button class="btn" data-emoji-random="${s.id}">随机一个</button>
+        <button class="btn" data-emoji-guess="${s.id}">按名称重设</button>
+        <button class="btn" data-emoji-close="${s.id}">关闭</button>
+      </div>
+    </div>`;
+}
+
 function filteredSites() {
   const q = adminQ.trim().toLowerCase();
   return sites.filter((s) => {
@@ -622,11 +687,12 @@ function render() {
       <div class="site${selected.has(s.id) ? ' picked' : ''}" data-id="${s.id}">
         <input type="checkbox" data-pick="${s.id}" aria-label="选择「${esc(s.name)}」"${selected.has(s.id) ? ' checked' : ''} />
         <div class="site-main">
-          <div class="site-head-row"><span class="site-emoji" style="background:linear-gradient(135deg,${catColor(catById(s.categoryId))[0]}2e,${catColor(catById(s.categoryId))[1]}17);border-color:${catColor(catById(s.categoryId))[0]}55">${esc(s.emoji || '·')}</span>${nameHtml}${catCell}</div>
+          <div class="site-head-row"><button class="site-emoji" data-emoji-open="${s.id}" title="更改图标" aria-label="更改「${esc(s.name)}」的图标" style="background:linear-gradient(135deg,${catColor(catById(s.categoryId))[0]}2e,${catColor(catById(s.categoryId))[1]}17);border-color:${catColor(catById(s.categoryId))[0]}55">${esc(s.emoji || '·')}</button>${nameHtml}${catCell}</div>
           <a class="site-url" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a>
           ${portHtml}
           ${warnHtml}
         </div>
+        ${emojiPanelHtml(s)}
         <div class="site-actions">
           <button class="btn" data-copy="${esc(s.url)}">复制链接</button>
           <button class="btn" data-update="${s.id}">更新</button>
@@ -770,6 +836,44 @@ function render() {
       } catch (e) {
         toast(`❌ ${e.message}`, 'err');
       }
+    });
+  });
+
+  // 改图标：点图标块展开/收起面板
+  list.querySelectorAll('[data-emoji-open]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      editingEmoji = editingEmoji === btn.dataset.emojiOpen ? null : btn.dataset.emojiOpen;
+      render();
+      const inp = list.querySelector('.emoji-input');
+      if (inp) inp.focus();
+    });
+  });
+  list.querySelectorAll('[data-emoji-set]').forEach((b) => {
+    b.addEventListener('click', () => setEmoji(b.dataset.id, { mode: 'set', emoji: b.dataset.emojiSet }));
+  });
+  list.querySelectorAll('[data-emoji-random]').forEach((b) => {
+    b.addEventListener('click', () => setEmoji(b.dataset.emojiRandom, { mode: 'random' }));
+  });
+  list.querySelectorAll('[data-emoji-guess]').forEach((b) => {
+    b.addEventListener('click', () => setEmoji(b.dataset.emojiGuess, { mode: 'guess' }));
+  });
+  list.querySelectorAll('[data-emoji-close]').forEach((b) => {
+    b.addEventListener('click', () => { editingEmoji = null; render(); });
+  });
+  list.querySelectorAll('[data-emoji-apply]').forEach((b) => {
+    const go = () => {
+      const inp = list.querySelector(`[data-emoji-input="${b.dataset.emojiApply}"]`);
+      const v = (inp?.value || '').trim();
+      if (!v) return toast('请先粘贴一个 emoji', 'err');
+      setEmoji(b.dataset.emojiApply, { mode: 'set', emoji: v });
+    };
+    b.addEventListener('click', go);
+    const inp = list.querySelector(`[data-emoji-input="${b.dataset.emojiApply}"]`);
+    inp?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+    inp?.addEventListener('input', () => {
+      // 粘贴/输入第一个字符就预览：把面板里被选中的项高亮到匹配项
+      const v = [...(inp.value || '')].slice(0, 2).join('');
+      inp.value = v;
     });
   });
 
@@ -1019,6 +1123,22 @@ $('bulkApply').addEventListener('click', async () => {
 $('bulkClear').addEventListener('click', () => {
   selected.clear();
   render();
+});
+
+$('reiconBtn').addEventListener('click', async () => {
+  const btn = $('reiconBtn');
+  btn.disabled = true;
+  try {
+    const r = await api('POST', '/api/sites/reicon');
+    const { sites: fresh } = await api('GET', '/api/sites');
+    sites = fresh;
+    render();
+    toast(`已按名称重设 ${r.sites.length} 个图标`, 'ok');
+  } catch (e) {
+    toast(`❌ ${e.message}`, 'err');
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 $('catAddBtn').addEventListener('click', addCategory);
