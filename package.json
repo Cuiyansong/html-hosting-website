@@ -1,0 +1,18 @@
+{
+  "name": "html-hosting",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "内部静态 HTML 托管：网页上传 → 配置端口 → 立即可访问",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs"
+  },
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "yauzl": "^3.1.3"
+  }
+}

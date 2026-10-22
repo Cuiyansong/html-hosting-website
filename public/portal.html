@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>网站导航</title>
+<style>
+  :root {
+    --bg: #f6f7fb;
+    --card: #ffffff;
+    --text: #12151c;
+    --muted: #6b7280;
+    --line: #e6e8ef;
+    --accent: #3b6cf6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(900px 500px at 12% -10%, #e6ecff 0%, transparent 60%),
+      radial-gradient(800px 460px at 95% 0%, #ffeef2 0%, transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font: 15px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 64px 22px 80px; }
+
+  header { margin-bottom: 34px; }
+  h1 { font-size: 30px; font-weight: 650; margin: 0 0 8px; letter-spacing: -0.5px; }
+  .sub { color: var(--muted); font-size: 14.5px; }
+
+  .search-wrap { margin: 0 0 24px; display: none; }
+  .search-wrap.show { display: block; }
+  input[type="search"] {
+    width: 100%; max-width: 340px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 11px 15px; font-size: 14px; color: var(--text); outline: none;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04);
+  }
+  input[type="search"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,108,246,.12); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
+    gap: 14px;
+  }
+
+  .card {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px 18px; text-decoration: none; color: inherit;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04);
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+    position: relative;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 26px rgba(16,24,40,.09);
+    border-color: #d4d9e6;
+  }
+  .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .avatar {
+    width: 44px; height: 44px; flex-shrink: 0;
+    border-radius: 11px; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 600; color: #fff;
+    text-transform: uppercase;
+  }
+  .card-body { min-width: 0; flex: 1; }
+  .card-name {
+    font-size: 15px; font-weight: 550; margin-bottom: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .card-meta {
+    font-size: 12.5px; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .arrow {
+    flex-shrink: 0; color: #c3c9d6; font-size: 17px;
+    transition: transform .16s ease, color .16s ease;
+  }
+  .card:hover .arrow { transform: translateX(3px); color: var(--accent); }
+
+  .empty {
+    text-align: center; padding: 70px 20px; color: var(--muted);
+    background: var(--card); border: 1px dashed var(--line); border-radius: 16px;
+  }
+  .empty .big { font-size: 34px; margin-bottom: 12px; opacity: .55; }
+  .empty p { margin: 0; font-size: 14px; }
+
+  footer {
+    margin-top: 44px; text-align: center; color: #9aa1b1; font-size: 12.5px;
+  }
+
+  @media (max-width: 600px) {
+    .wrap { padding: 40px 16px 60px; }
+    h1 { font-size: 24px; }
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>网站导航</h1>
+    <div class="sub" id="sub">正在加载…</div>
+  </header>
+
+  <div class="search-wrap" id="searchWrap">
+    <input type="search" id="search" placeholder="搜索网站名称…" autocomplete="off" />
+  </div>
+
+  <div id="content"></div>
+
+  <footer>内部静态网站 · 点击卡片即可打开</footer>
+</div>
+
+<script>
+const AVATAR_COLORS = [
+  ['#3b6cf6', '#7aa2ff'], ['#7c3aed', '#a78bfa'], ['#0ea5e9', '#67d3f5'],
+  ['#10b981', '#5eead4'], ['#f59e0b', '#fcd34d'], ['#ef4444', '#fca5a5'],
+  ['#ec4899', '#f9a8d4'], ['#14b8a6', '#7dd3c7'],
+];
+
+let all = [];
+
+function colorFor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+function fmt(iso) {
+  if (!iso) return '已发布';
+  const d = new Date(iso);
+  const diff = Date.now() - d.getTime();
+  if (diff < 60e3) return '刚刚更新';
+  if (diff < 3600e3) return `${Math.floor(diff / 60e3)} 分钟前更新`;
+  if (diff < 864e5) return `${Math.floor(diff / 3600e3)} 小时前更新`;
+  if (diff < 30 * 864e5) return `${Math.floor(diff / 864e5)} 天前更新`;
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function render(list) {
+  const content = document.getElementById('content');
+  if (!list.length) {
+    const isFiltered = list !== all;
+    content.innerHTML = `
+      <div class="empty">
+        <div class="big">${isFiltered ? '🔍' : '📄'}</div>
+        <p>${isFiltered ? '没有匹配的网站' : '还没有发布任何网站'}</p>
+      </div>`;
+    return;
+  }
+
+  content.innerHTML = `<div class="grid">${list.map((s) => {
+    const [c1, c2] = colorFor(s.name);
+    const letter = s.name.trim().charAt(0) || '?';
+    return `
+      <a class="card" href="${esc(s.url)}" target="_blank" rel="noopener">
+        <div class="avatar" style="background:linear-gradient(135deg,${c1},${c2})">${esc(letter)}</div>
+        <div class="card-body">
+          <div class="card-name">${esc(s.name)}</div>
+          <div class="card-meta">${esc(fmt(s.updatedAt))}</div>
+        </div>
+        <div class="arrow">→</div>
+      </a>`;
+  }).join('')}</div>`;
+}
+
+function applyFilter() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  render(q ? all.filter((s) => s.name.toLowerCase().includes(q)) : all);
+}
+
+async function load() {
+  try {
+    const res = await fetch('/api/sites', { cache: 'no-store' });
+    const data = await res.json();
+    all = data.sites || [];
+    document.getElementById('sub').textContent = all.length
+      ? `共 ${all.length} 个网站，点击即可访问`
+      : '暂无网站';
+    document.getElementById('searchWrap').classList.toggle('show', all.length > 6);
+    applyFilter();
+  } catch {
+    document.getElementById('sub').textContent = '加载失败，请刷新页面';
+  }
+}
+
+document.getElementById('search').addEventListener('input', applyFilter);
+
+load();
+setInterval(load, 30000);  // 每 30 秒自动刷新
+</script>
+</body>
+</html>

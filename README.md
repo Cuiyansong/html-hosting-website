@@ -1,1 +1,165 @@
-# html-hosting-website
+# 静态网站管理平台
+
+内部使用的静态网站托管工具：**网页上传 HTML 或 zip → 自动分配端口 → 别人通过链接直接访问**。
+
+## 环境要求
+
+| 项 | 要求 |
+|----|------|
+| **Node.js** | **≥ 22.0.0**（项目统一使用 Node 22） |
+| 推荐版本 | Node 22 LTS（已实测 v22.22.0） |
+| 操作系统 | macOS / Linux / Windows |
+| 依赖 | 仅 2 个第三方包（busboy、yauzl），无框架 |
+
+版本不符时启动会直接报错退出：
+
+```
+  ✗ 需要 Node.js 22 或更高版本，当前是 v20.20.2
+    请升级 Node.js：https://nodejs.org/
+```
+
+切换版本（已装 nvm）：
+
+```bash
+nvm use            # 读取 .nvmrc（22）
+nvm install 22 && nvm use 22
+```
+
+> 说明：代码本身在 Node 16+ 即可运行（已实测 16/18/20/22 均可），项目统一要求 22 是为与团队运行环境保持一致。
+
+## 快速开始
+
+```bash
+npm install
+npm start
+```
+
+首次启动会自动生成登录密码并打印在控制台（同时保存到 `data/password.txt`）：
+
+```
+  静态网站管理平台
+  ─────────────────────────────
+  运行环境   Node v22.22.0
+  管理页面   http://localhost:8091
+  门户首页   http://localhost:8090
+  端口范围   18088 - 18188
+  登录密码   48dc3a3c
+```
+
+## 使用方式
+
+### 管理页（需要密码）：`http://服务器IP:8091`
+
+- **拖拽上传**：把 `.html` 或 `.zip` 拖进页面 → 自动建站 + 自动分配端口 → 链接自动复制
+- **手动新建**：可指定网站名称和端口（端口必须 ≥ 10000）
+- **站点管理**：更新（重新上传）、改端口、改名、在门户隐藏、删除
+
+### 门户页（公开）：`http://服务器IP:8090`
+
+所有已发布网站的统一导航页，一个链接看全部。可在管理页逐个控制是否在门户展示。
+
+### 网站访问：`http://服务器IP:端口`
+
+例如 `http://172.31.168.41:18088`
+
+### LLM 接口说明（公开）：`http://服务器IP:8091/llms.txt`
+
+Markdown 格式，面向前面的 LLM / 自动化脚本，列出页面每个按钮对应的 HTTP 接口（新增上传、更新、改名、改端口、门户隐藏）与认证方式。
+
+- 管理页右上角也有「LLM 说明 ↗」入口
+- 文档内明文规则：**禁止删除站点**（不发 `DELETE /api/sites/:id`）
+- 只是说明文档，不含密码；服务端行为未做额外拦截，删除仍由人工在管理页操作
+- 端口/上限等数字由服务端在返回时按当前配置渲染，改环境变量后无需改文档
+
+## zip 包的识别规则
+
+上传 zip 后会自动处理常见结构：
+
+| zip 内部结构 | 行为 |
+|-------------|------|
+| `index.html` 在根目录 | 直接使用 |
+| 只有一个文件夹（`www/`、`dist/`、`html/` 等） | 进入该文件夹作为站点根目录 |
+| 多层嵌套（`a/b/index.html`） | 递归下探（最多 6 层） |
+| 入口不叫 index.html（如 `main.html`） | 按优先级挑选并复制为 `index.html` |
+| 含 `__MACOSX`、`.DS_Store` 等噪音 | 自动忽略，不发布 |
+
+入口文件优先级：`index.html` → `index.htm` → `main.html` → `default.html` → `home.html` → `demo.html` → 唯一的 html → 体积最大的 html
+
+### 上传前的常见错误
+
+如果上传的是**项目源码目录**而不是**构建产物**，页面会空白。平台会自动检测并提示：
+
+- 残留模板语法 `<% %>` 或 `%PUBLIC_URL%` → 说明没构建
+- 引用了 `../xxx`（站点目录之外）→ 该资源无法访问
+- 页面只有空容器且没有本地 js → 只传了模板没传打包文件
+
+正确做法：先 `npm run build`，然后压缩 `build/`、`dist/`、`out/` 目录的内容再上传。
+
+## 配置项（环境变量）
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `ADMIN_PORT` | `8091` | 管理页端口 |
+| `PORTAL_PORT` | `8090` | 门户页端口 |
+| `PORT_POOL_START` | `18088` | 自动分配端口池起点 |
+| `PORT_POOL_END` | `18188` | 自动分配端口池终点 |
+| `PORT_MIN` | `10000` | 手动指定端口的下限 |
+| `PORT_MAX` | `65535` | 手动指定端口的上限 |
+| `ADMIN_PASSWORD` | 自动生成 | 登录密码（设置后优先使用） |
+| `MAX_UPLOAD_MB` | `200` | 单个上传包大小上限 |
+| `PUBLIC_HOST` | 自动探测 | 生成访问链接时使用的域名/IP |
+
+示例：
+
+```bash
+ADMIN_PASSWORD='mypass' PORT_POOL_START=20000 PORT_POOL_END=20100 node server.mjs
+```
+
+## 数据存放
+
+```
+data/
+├── sites/<站点ID>/<版本时间戳>/   网站文件（每个版本一个目录，保留最近 3 个）
+├── data.json                      站点清单（名称、端口、版本）
+├── password.txt                   登录密码
+├── secret.key                     会话签名密钥
+└── tmp/                           上传临时文件（发布后自动清理）
+```
+
+**备份**：直接打包 `data/` 目录即可。
+
+```bash
+tar -czf backup-$(date +%F).tar.gz data/
+```
+
+**注意**：管理页删除网站会永久删除对应目录，无法恢复。
+
+## 端口说明
+
+- 自动分配范围：`PORT_POOL_START` ~ `PORT_POOL_END`（默认 18088-18188）
+- 手动指定范围：`PORT_MIN` ~ `PORT_MAX`（默认 10000-65535）
+- 校验规则：整数、范围内、不与其他网站重复、未被其他程序占用
+- 改端口失败会自动回滚到原端口，网站不中断
+
+## 长期运行
+
+```bash
+# 方式一：pm2
+npm i -g pm2
+pm2 start server.mjs --name sites
+pm2 save && pm2 startup
+
+# 方式二：nohup
+nohup node server.mjs > server.log 2>&1 &
+
+# 方式三：systemd（Linux）
+# 见 /etc/systemd/system/sites.service，ExecStart=/usr/bin/node /path/server.mjs
+```
+
+进程重启后会自动从 `data.json` 恢复所有网站监听，无需手工干预。
+
+## 实现说明
+
+- **零框架**：HTTP 服务用 `node:http`，多端口监听用 `node:http` + `node:net`- **busboy**：流式解析 multipart 上传，200MB 包内存占用恒定
+- **yauzl**：流式解压 zip，自带 zip-slip 路径穿越防护
+- **安全**：密码 HMAC 签名会话、路径穿越拦截、禁止可执行文件、上传大小限制

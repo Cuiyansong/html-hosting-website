@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>静态网站管理</title>
+<style>
+  :root {
+    --bg: #0e1014; --panel: #16191f; --panel-2: #1b1f27; --border: #272c36;
+    --text: #e7e9ef; --muted: #8a92a6; --accent: #4f7cff; --ok: #35d07f; --err: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.65 -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .hidden { display: none !important; }
+
+  /* ---------- 登录 ---------- */
+  #login {
+    height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .login-box { width: 100%; max-width: 340px; text-align: center; }
+  .login-box h1 { font-size: 20px; margin: 0 0 6px; font-weight: 600; }
+  .login-box p { color: var(--muted); font-size: 13px; margin: 0 0 26px; }
+  .login-box input {
+    width: 100%; background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    border-radius: 9px; padding: 13px 15px; font-size: 15px; outline: none; text-align: center;
+    letter-spacing: 2px;
+  }
+  .login-box input:focus { border-color: var(--accent); }
+  .login-box button {
+    width: 100%; margin-top: 12px; background: var(--accent); color: #fff; border: 0;
+    border-radius: 9px; padding: 13px; font-size: 15px; cursor: pointer; font-weight: 500;
+  }
+  .login-box button:hover { filter: brightness(1.1); }
+  .err-text { color: var(--err); font-size: 13px; min-height: 20px; margin-top: 12px; }
+
+  /* ---------- 主界面 ---------- */
+  #app { max-width: 860px; margin: 0 auto; padding: 36px 20px 72px; }
+  .top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 22px; }
+  .top h1 { font-size: 20px; margin: 0; font-weight: 600; }
+  .top button {
+    background: transparent; border: 0; color: var(--muted); font-size: 13px; cursor: pointer; padding: 4px;
+  }
+  .top button:hover { color: var(--text); }
+  .top-actions { display: flex; align-items: center; gap: 16px; }
+  .top-link {
+    color: var(--accent); font-size: 13px; text-decoration: none;
+  }
+  .top-link:hover { text-decoration: underline; }
+
+  /* 拖拽区 */
+  #drop {
+    border: 2px dashed var(--border); border-radius: 14px; padding: 44px 20px;
+    text-align: center; cursor: pointer; transition: .18s; background: var(--panel);
+    margin-bottom: 30px;
+  }
+  #drop:hover, #drop.over { border-color: var(--accent); background: rgba(79,124,255,.06); }
+  #drop .icon { font-size: 30px; margin-bottom: 10px; opacity: .85; }
+  #drop .main { font-size: 16px; font-weight: 500; margin-bottom: 6px; }
+  #drop .sub { color: var(--muted); font-size: 13px; }
+  #drop.busy { pointer-events: none; opacity: .6; }
+
+  /* 手动新建 */
+  .manual {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 18px; margin-bottom: 30px;
+  }
+  .manual summary {
+    cursor: pointer; color: var(--muted); font-size: 13.5px; list-style: none; user-select: none;
+  }
+  .manual summary::-webkit-details-marker { display: none; }
+  .manual summary::before { content: '＋ '; }
+  .manual[open] summary::before { content: '－ '; }
+  .manual summary:hover { color: var(--text); }
+  .manual-body { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+  .manual-body input {
+    background: #0d0f14; border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 10px 13px; font-size: 14px; outline: none;
+  }
+  .manual-body input:focus { border-color: var(--accent); }
+  .manual-body input#newName { flex: 1; min-width: 160px; }
+  .manual-body input#newPort { width: 190px; }
+  .manual-hint { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
+  .port-edit { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .port-edit span { color: var(--muted); font-size: 12.5px; }
+  .port-edit input { width: 130px; }
+  .field-err { color: var(--err); font-size: 12.5px; margin-top: 6px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%);
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 12px 20px; border-radius: 10px; font-size: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.45);
+    max-width: 90vw; z-index: 50;
+  }
+  .toast.ok { border-color: rgba(53,208,127,.4); }
+  .toast.err { border-color: rgba(255,107,107,.45); }
+
+  .sites-head {
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--muted); font-size: 13px; margin-bottom: 12px; padding: 0 2px;
+  }
+
+  .site {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 10px; display: flex; align-items: center; gap: 16px;
+    transition: border-color .15s;
+  }
+  .site:hover { border-color: #333a47; }
+  .site-main { flex: 1; min-width: 0; }
+  .site-name {
+    font-size: 15px; font-weight: 500; margin-bottom: 5px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .site-url {
+    color: var(--accent); font-size: 13px; text-decoration: none;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .site-url:hover { text-decoration: underline; }
+  .site-meta { color: var(--muted); font-size: 12px; margin-top: 5px; }
+  .site-warn {
+    margin-top: 8px; font-size: 12.5px; color: #ffc061;
+    background: rgba(255,192,97,.08); border: 1px solid rgba(255,192,97,.22);
+    border-radius: 7px; padding: 7px 10px; line-height: 1.5;
+  }
+  .site-warn b { color: #ffd089; font-weight: 600; }
+  .site-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .btn {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; white-space: nowrap;
+  }
+  .btn:hover { border-color: #3a4250; background: #202530; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.1); }
+  .btn.danger:hover { border-color: #4a2626; color: var(--err); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .empty { text-align: center; color: var(--muted); font-size: 14px; padding: 40px 0; }
+
+  input.rename {
+    background: #0d0f14; border: 1px solid var(--accent); color: var(--text);
+    border-radius: 6px; padding: 6px 10px; font-size: 14px; width: 100%; outline: none;
+  }
+
+  @media (max-width: 600px) {
+    .site { flex-direction: column; align-items: stretch; gap: 12px; }
+    .site-actions { justify-content: flex-end; }
+    #app { padding: 24px 16px 56px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 登录 -->
+<div id="login">
+  <div class="login-box">
+    <h1>静态网站管理</h1>
+    <p>请输入访问密码</p>
+    <input id="pwd" type="password" placeholder="••••••" autocomplete="current-password" />
+    <button id="loginBtn">进入</button>
+    <div class="err-text" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- 主界面 -->
+<div id="app" class="hidden">
+  <div class="top">
+    <h1>我的网站</h1>
+    <div class="top-actions">
+      <a id="portalLink" class="top-link" target="_blank" rel="noopener" style="display:none">门户首页 ↗</a>
+      <a class="top-link" href="/llms.txt" target="_blank" rel="noopener" title="给 LLM / 自动化脚本看的接口说明">LLM 说明 ↗</a>
+      <button id="logoutBtn">退出登录</button>
+    </div>
+  </div>
+
+  <div id="drop">
+    <div class="icon">⬆</div>
+    <div class="main">把 HTML 文件或压缩包拖到这里</div>
+    <div class="sub">支持 .html 单文件、.zip 整站压缩包 · 也可以点击选择文件</div>
+  </div>
+
+  <details class="manual" id="manual">
+    <summary>手动新建网站（可指定端口，稍后上传内容）</summary>
+    <div class="manual-body">
+      <input id="newName" type="text" placeholder="网站名称" />
+      <input id="newPort" type="number" placeholder="端口（留空自动分配）" />
+      <button class="btn primary" id="createBtn">创建</button>
+    </div>
+    <div class="manual-hint" id="portHint"></div>
+  </details>
+
+  <div class="sites-head">
+    <span id="count"></span>
+  </div>
+  <div id="list"></div>
+</div>
+
+<input type="file" id="picker" accept=".zip,.html,.htm" class="hidden" />
+
+<script>
+const $ = (id) => document.getElementById(id);
+let sites = [];
+let editingId = null;
+let editingPortId = null;
+let PORT_MIN = 10000;
+let PORT_MAX = 65535;
+
+/** 客户端预校验（服务端会再校验一次，以服务端为准） */
+function checkPort(raw) {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return null; // 留空=自动
+  const n = Number(raw);
+  if (!Number.isInteger(n)) return '端口必须是整数';
+  if (n < PORT_MIN) return `端口不能小于 ${PORT_MIN}`;
+  if (n > PORT_MAX) return `端口不能大于 ${PORT_MAX}`;
+  return null;
+}
+
+// ---------- 通用请求 ----------
+async function api(method, url, body) {
+  const opt = { method, headers: {} };
+  if (body instanceof FormData) {
+    opt.body = body;
+  } else if (body !== undefined) {
+    opt.headers['Content-Type'] = 'application/json';
+    opt.body = JSON.stringify(body);
+  }
+  const res = await fetch(url, opt);
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && url !== '/api/login') {
+    showLogin();
+    throw new Error('登录已过期，请重新登录');
+  }
+  if (!res.ok) throw new Error(data.error || `请求失败 (${res.status})`);
+  return data;
+}
+
+let toastTimer;
+function toast(text, kind = 'ok') {
+  let el = document.querySelector('.toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  el.className = `toast ${kind}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el?.remove(), 4000);
+}
+
+// ---------- 登录 ----------
+function showLogin() {
+  $('app').classList.add('hidden');
+  $('login').classList.remove('hidden');
+  $('pwd').value = '';
+  $('pwd').focus();
+}
+
+function showApp() {
+  $('login').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  refresh();
+}
+
+$('loginBtn').addEventListener('click', doLogin);
+$('pwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+
+async function doLogin() {
+  const password = $('pwd').value;
+  if (!password) return;
+  $('loginErr').textContent = '';
+  try {
+    await api('POST', '/api/login', { password });
+    showApp();
+  } catch (e) {
+    $('loginErr').textContent = e.message;
+  }
+}
+
+$('logoutBtn').addEventListener('click', async () => {
+  await api('POST', '/api/logout').catch(() => {});
+  showLogin();
+});
+
+// ---------- 上传 ----------
+function uploadFile(file) {
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  const drop = $('drop');
+  drop.classList.add('busy');
+  const mainEl = drop.querySelector('.main');
+  const prev = mainEl.textContent;
+  mainEl.textContent = '正在上传…';
+
+  api('POST', '/api/publish', fd)
+    .then((site) => {
+      if (site.warnings && site.warnings.length) {
+        toast(`⚠️ 已发布，但可能有问题：${site.warnings[0]}`, 'err');
+      } else if (site.entry === null) {
+        toast('⚠️ 已上传，但压缩包里没找到 .html 文件，请检查内容', 'err');
+      } else {
+        toast(`✅ 已发布：${site.name}`, 'ok');
+        copyText(site.url);
+      }
+      refresh();
+    })
+    .catch((e) => toast(`❌ ${e.message}`, 'err'))
+    .finally(() => {
+      drop.classList.remove('busy');
+      mainEl.textContent = prev;
+      $('picker').value = '';
+    });
+}
+
+const drop = $('drop');
+drop.addEventListener('click', () => $('picker').click());
+$('picker').addEventListener('change', (e) => uploadFile(e.target.files[0]));
+['dragenter', 'dragover'].forEach((ev) =>
+  drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); })
+);
+['dragleave', 'drop'].forEach((ev) =>
+  drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); })
+);
+drop.addEventListener('drop', (e) => uploadFile(e.dataTransfer.files[0]));
+
+// ---------- 手动新建 ----------
+$('newPort').addEventListener('input', () => {
+  const v = $('newPort').value.trim();
+  const hint = $('portHint');
+  const err = checkPort(v);
+  hint.textContent = err ? `⚠️ ${err}` : `端口范围 ${PORT_MIN}-${PORT_MAX}，留空则自动分配`;
+  hint.style.color = err ? 'var(--err)' : 'var(--muted)';
+});
+
+async function createSite() {
+  const name = $('newName').value.trim();
+  const portRaw = $('newPort').value.trim();
+  if (!name) return toast('请填写网站名称', 'err');
+
+  const err = checkPort(portRaw);
+  if (err) return toast(`❌ ${err}`, 'err');
+
+  const btn = $('createBtn');
+  btn.disabled = true;
+  try {
+    const site = await api('POST', '/api/sites', { name, port: portRaw === '' ? undefined : Number(portRaw) });
+    toast(`✅ 已创建「${site.name}」，端口 ${site.port}，现在可以上传内容`, 'ok');
+    $('newName').value = '';
+    $('newPort').value = '';
+    $('portHint').textContent = '';
+    refresh();
+  } catch (e) {
+    toast(`❌ ${e.message}`, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+$('createBtn').addEventListener('click', createSite);
+$('newPort').addEventListener('keydown', (e) => { if (e.key === 'Enter') createSite(); });
+$('newName').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('newPort').focus(); });
+
+// ---------- 列表 ----------
+async function refresh() {
+  try {
+    const data = await api('GET', '/api/sites');
+    sites = data.sites;
+  } catch {
+    return;
+  }
+  $('count').textContent = sites.length ? `共 ${sites.length} 个网站` : '';
+  render();
+}
+
+function fmtTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const diff = Date.now() - d.getTime();
+  if (diff < 60e3) return '刚刚更新';
+  if (diff < 3600e3) return `${Math.floor(diff / 60e3)} 分钟前更新`;
+  if (diff < 864e5) return `${Math.floor(diff / 3600e3)} 小时前更新`;
+  return `${d.getMonth() + 1}月${d.getDate()}日更新`;
+}
+
+function render() {
+  const list = $('list');
+  if (!sites.length) {
+    list.innerHTML = '<div class="empty">还没有网站，把文件拖到上方框内即可发布第一个</div>';
+    return;
+  }
+  list.innerHTML = sites.map((s) => {
+    const nameHtml = editingId === s.id
+      ? `<input class="rename" data-rename="${s.id}" value="${esc(s.name)}" />`
+      : `<div class="site-name">${esc(s.name)}</div>`;
+    const status = s.published ? fmtTime(s.updatedAt) : '尚未发布内容';
+    const portHtml = editingPortId === s.id
+      ? `<div class="port-edit">
+           <span>新端口</span>
+           <input class="rename" data-portinput="${s.id}" type="number" value="${s.port}" min="${PORT_MIN}" max="${PORT_MAX}" />
+           <span>≥ ${PORT_MIN}</span>
+         </div>`
+      : `<div class="site-meta">${status} · 端口 ${s.port}</div>`;
+    const warnHtml = (s.warnings && s.warnings.length)
+      ? `<div class="site-warn" title="${esc(s.warnings.join('\n'))}">
+           ⚠️ <b>可能有问题：</b>${esc(s.warnings[0])}${s.warnings.length > 1 ? ` （共 ${s.warnings.length} 项，悬停查看全部）` : ''}
+         </div>`
+      : '';
+    return `
+      <div class="site" data-id="${s.id}">
+        <div class="site-main">
+          ${nameHtml}
+          <a class="site-url" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a>
+          ${portHtml}
+          ${warnHtml}
+        </div>
+        <div class="site-actions">
+          <button class="btn" data-copy="${esc(s.url)}">复制链接</button>
+          <button class="btn" data-update="${s.id}">更新</button>
+          <button class="btn" data-port="${s.id}">改端口</button>
+          <button class="btn" data-toggle="${s.id}" title="控制是否在门户首页展示">${s.hidden ? '在门户显示' : '在门户隐藏'}</button>
+          <button class="btn" data-edit="${s.id}">改名</button>
+          <button class="btn danger" data-del="${s.id}">删除</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  // 复制
+  list.querySelectorAll('[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', () => copyText(btn.dataset.copy));
+  });
+  // 更新（重新上传）
+  list.querySelectorAll('[data-update]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.zip,.html,.htm';
+      input.onchange = async () => {
+        const file = input.files[0];
+        if (!file) return;
+        const fd = new FormData();
+        fd.append('file', file);
+        btn.disabled = true;
+        btn.textContent = '上传中…';
+        try {
+          const site = await api('POST', `/api/sites/${btn.dataset.update}/deploy`, fd);
+          const hasWarn = site.warnings && site.warnings.length;
+          toast(
+            hasWarn
+              ? `⚠️ 已更新，但可能有问题：${site.warnings[0]}`
+              : site.entry === null
+                ? '⚠️ 已上传，但压缩包里没找到 .html 文件'
+                : `✅ 已更新：${site.name}`,
+            hasWarn || site.entry === null ? 'err' : 'ok'
+          );
+          refresh();
+        } catch (e) {
+          toast(`❌ ${e.message}`, 'err');
+          btn.disabled = false;
+          btn.textContent = '更新';
+        }
+      };
+      input.click();
+    });
+  });
+  // 门户可见性切换
+  list.querySelectorAll('[data-toggle]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const site = sites.find((s) => s.id === btn.dataset.toggle);
+      if (!site) return;
+      try {
+        const r = await api('PATCH', `/api/sites/${site.id}`, { hidden: !site.hidden });
+        toast(r.hidden ? '已从门户隐藏' : '已在门户显示', 'ok');
+        refresh();
+      } catch (e) {
+        toast(`❌ ${e.message}`, 'err');
+      }
+    });
+  });
+  // 改端口
+  list.querySelectorAll('[data-port]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      editingPortId = btn.dataset.port;
+      editingId = null;
+      render();
+      const input = list.querySelector('[data-portinput]');
+      if (!input) return;
+      input.focus();
+      input.select();
+
+      let saving = false;
+      const commit = async () => {
+        if (saving) return;
+        saving = true;
+        const err = checkPort(input.value);
+        if (err) {
+          toast(`❌ ${err}`, 'err');
+          saving = false;
+          input.focus();
+          return;
+        }
+        try {
+          const r = await api('PATCH', `/api/sites/${btn.dataset.port}`, { port: Number(input.value) });
+          toast(`✅ 端口已改为 ${r.port}，新链接：${r.url}`, 'ok');
+          editingPortId = null;
+          refresh();
+        } catch (e) {
+          toast(`❌ ${e.message}`, 'err');
+          saving = false;
+          input.focus();
+        }
+      };
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') commit();
+        if (e.key === 'Escape') { editingPortId = null; render(); }
+      });
+      input.addEventListener('blur', () => { if (!saving) commit(); });
+    });
+  });
+  // 改名
+  list.querySelectorAll('[data-edit]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      editingId = btn.dataset.edit;
+      editingPortId = null;
+      render();
+      const input = list.querySelector('[data-rename]');
+      if (input) {
+        input.focus();
+        input.select();
+        const save = async () => {
+          editingId = null;
+          try {
+            await api('PATCH', `/api/sites/${btn.dataset.edit}`, { name: input.value });
+          } catch (e) {
+            toast(`❌ ${e.message}`, 'err');
+          }
+          refresh();
+        };
+        input.addEventListener('blur', save, { once: true });
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') input.blur();
+          if (e.key === 'Escape') { editingId = null; render(); }
+        });
+      }
+    });
+  });
+  // 删除
+  list.querySelectorAll('[data-del]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const site = sites.find((s) => s.id === btn.dataset.del);
+      if (!confirm(`确定删除「${site?.name}」？删除后链接立即失效。`)) return;
+      try {
+        await api('DELETE', `/api/sites/${btn.dataset.del}`);
+        toast('已删除', 'ok');
+        refresh();
+      } catch (e) {
+        toast(`❌ ${e.message}`, 'err');
+      }
+    });
+  });
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('链接已复制，直接粘贴发给别人即可', 'ok');
+  } catch {
+    // 非 HTTPS 环境下 clipboard 不可用，降级
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    toast('链接已复制', 'ok');
+  }
+}
+
+// ---------- 启动 ----------
+(async () => {
+  try {
+    const { authed, portalUrl, portMin, portMax } = await api('GET', '/api/session');
+    if (typeof portMin === 'number') PORT_MIN = portMin;
+    if (typeof portMax === 'number') PORT_MAX = portMax;
+    $('newPort').placeholder = `端口（≥${PORT_MIN}，留空自动）`;
+    $('newPort').min = PORT_MIN;
+    $('newPort').max = PORT_MAX;
+    $('portHint').textContent = `端口范围 ${PORT_MIN}-${PORT_MAX}，留空则自动分配`;
+
+    if (portalUrl) {
+      const link = $('portalLink');
+      link.href = portalUrl;
+      link.style.display = '';
+    }
+    authed ? showApp() : showLogin();
+  } catch {
+    showLogin();
+  }
+})();
+</script>
+</body>
+</html>
