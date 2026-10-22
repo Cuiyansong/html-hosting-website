@@ -1138,12 +1138,20 @@ const adminServer = http.createServer(async (req, res) => {
 
 const PORTAL_HTML = path.join(ROOT, 'public', 'portal.html');
 
+/** 门户页渲染：把管理端地址注入静态 HTML（导航里的「管理端」入口不依赖 JS） */
+function portalPage(req) {
+  return fs
+    .readFileSync(PORTAL_HTML, 'utf8')
+    .split('{{ADMIN_URL}}').join(`http://${hostOf(req)}:${ADMIN_PORT}/`)
+    .split('{{ADMIN_PORT}}').join(String(ADMIN_PORT));
+}
+
 const portalServer = http.createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host}`);
 
   if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
     try {
-      const html = fs.readFileSync(PORTAL_HTML);
+      const html = Buffer.from(portalPage(req), 'utf8');
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': html.length });
       return res.end(html);
     } catch {
