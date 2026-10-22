@@ -114,15 +114,16 @@ function checkPassword(input) {
 
 // ---------------------------------------------------------------- 持久化
 
-let db = { sites: [] };
+let db = { sites: [], categories: [] };
 
 function loadDB() {
   if (fs.existsSync(DB_FILE)) {
     try {
       db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
       db.sites ||= [];
+      db.categories ||= [];
     } catch {
-      db = { sites: [] };
+      db = { sites: [], categories: [] };
     }
   }
 }
@@ -134,6 +135,57 @@ function saveDB() {
 }
 
 // ---------------------------------------------------------------- 工具
+// ---------------------------------------------------------------- 站点图标（emoji）
+
+/**
+ * 图标池：只用单码点/常规 emoji，不用组合序列（避免不同平台渲染差异导致"看起来重复"）
+ * 池内去重；分配时跳过已被占用的图标，保证全局不重复。
+ */
+const EMOJI_POOL = [...new Set([
+  '🚀','🛰️','🛸','🪐','🌍','🌕','☄️','🔭','🧭','🗺️',
+  '💻','🖥️','⌨️','🖱️','💾','💿','📀','📱','📟','🖨️',
+  '📺','📷','📹','🎥','🎬','🎞️','🔋','🔌','💡','🔦',
+  '🧠','🧬','🧪','🧫','🔬','⚗️','🩺','💉','🩹','🧰',
+  '🔧','🔨','⚙️','🛠️','⛏️','🔩','🧲','⛓️','🗜️','🪛',
+  '📊','📈','📉','🗂️','🗃️','🗄️','📁','📂','📋','📌',
+  '📍','📎','🔗','🧷','📐','📏','🧮','✏️','🖊️','🖋️',
+  '📝','📄','📃','📑','📚','📖','📕','📗','📘','📙',
+  '📔','📒','📓','🔖','🗒️','🗓️','📆','📅','🕒','⏱️',
+  '🧭','🎯','🎲','🧩','🪄','🎨','🖌️','🖍️','🖼️','🪞',
+  '🌐','🔍','🔎','🔐','🔒','🔓','🗝️','🔑','🛡️','⚔️',
+  '🏗️','🏛️','🏙️','🌆','🌃','🌉','🗼','🏰','⛩️','🗿',
+  '📦','🏷️','🎁','🎈','🎀','🎉','🎊','🏮','🧧','🪅',
+  '🌱','🌿','☘️','🍀','🌵','🎄','🌲','🌳','🌴','🪴',
+  '🍃','🍂','🍁','🍄','🌾','💐','🌷','🌹','🌺','🌸',
+  '🌼','🌻','🌞','🌙','⭐','🌟','✨','⚡','🔥','🌈',
+  '☀️','⛅','☁️','🌧️','⛈️','❄️','☃️','💧','🌊','🫧',
+  '🐙','🦑','🦀','🐡','🐠','🐟','🐬','🐳','🦈','🐢',
+  '🦊','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐧',
+  '🦉','🦅','🦋','🐝','🐌','🐞','🦄','🐴','🐑','🦌',
+  '🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍒','🍑',
+  '🥝','🍅','🥑','🥦','🌽','🥕','🍞','🧀','🍳','🥞',
+  '🍔','🍟','🍕','🌮','🍜','🍣','🍱','🍙','🍰','🍪',
+  '☕','🍵','🧋','🥤','🍺','🍷','🍹','🧊','🍯','🧂',
+  '❤️','🧡','💛','💚','💙','💜','🖤','🤍','💎','🪙',
+  '😀','😎','🤖','👾','🕹️','🎮','🎧','🎵','🎼','🔔',
+  '✅','🔰','♻️','⚠️','🈯','💠','🌀','💤','🏁','🚩',
+])];
+
+/** 随机挑一个没被占用的图标；池子用尽（站点数 > 图标数）时才退化为重复 */
+function pickEmoji() {
+  const used = new Set(db.sites.map((s) => s.emoji).filter(Boolean));
+  const free = EMOJI_POOL.filter((e) => !used.has(e));
+  const list = free.length ? free : EMOJI_POOL;
+  return list[crypto.randomInt(list.length)];
+}
+
+/** 老数据补齐图标（不重复）；已全部有图标时是一次 O(n) 的短路检查 */
+function ensureEmojis() {
+  if (db.sites.every((s) => s.emoji)) return;
+  for (const s of db.sites) if (!s.emoji) s.emoji = pickEmoji();
+  saveDB();
+}
+
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.htm': 'text/html; charset=utf-8',
@@ -160,6 +212,38 @@ function probePort(port) {
 const runtime = new Map();
 const siteById = (id) => db.sites.find((s) => s.id === id);
 
+// ---------------------------------------------------------------- 分类
+
+const CAT_NAME_MAX = 20;
+const CAT_MAX = 50;
+const CAT_COLORS = 6;
+
+const catById = (id) => (id ? db.categories.find((c) => c.id === id) || null : null);
+const sortedCats = () => [...db.categories].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+
+/** 分类下的站点计数：count = 门户可见数（与门户 chip 一致），allCount = 含隐藏 */
+function categoryStats(catId) {
+  const mine = db.sites.filter((s) => (s.categoryId || null) === (catId || null));
+  return {
+    count: mine.filter((s) => s.status === 'active' && s.current && !s.hidden).length,
+    allCount: mine.length,
+  };
+}
+
+function categoryView(c) {
+  return { id: c.id, name: c.name, order: c.order, color: c.color, ...categoryStats(c.id) };
+}
+
+/** 分类名的唯一校验入口：新建与改名共用 */
+function validateCategoryName(raw, excludeId = null) {
+  const name = String(raw ?? '').trim().replace(/\s+/g, ' ');
+  if (!name) return { error: '请填写分类名称' };
+  if (name.length > CAT_NAME_MAX) return { error: `分类名称最多 ${CAT_NAME_MAX} 个字符` };
+  const dup = db.categories.some((c) => c.id !== excludeId && c.name.toLowerCase() === name.toLowerCase());
+  if (dup) return { error: `已存在同名分类「${name}」` };
+  return { name };
+}
+
 function hostOf(req) {
   if (PUBLIC_HOST) return PUBLIC_HOST;
   const h = req.headers.host || 'localhost';
@@ -167,14 +251,18 @@ function hostOf(req) {
 }
 
 function view(site, req) {
+  const cat = catById(site.categoryId);
   return {
     id: site.id,
     name: site.name,
+    emoji: site.emoji || null,
     port: site.port,
     url: `http://${hostOf(req)}:${site.port}/`,
     status: site.status,
     published: Boolean(site.current),
     hidden: Boolean(site.hidden),
+    categoryId: cat ? cat.id : null,
+    category: cat ? { id: cat.id, name: cat.name, color: cat.color } : null,
     warnings: site.warnings || [],
     updatedAt: site.updatedAt || null,
   };
@@ -693,6 +781,7 @@ const adminServer = http.createServer(async (req, res) => {
 
     // 列表
     if (p === '/api/sites' && req.method === 'GET') {
+      ensureEmojis();
       return json(res, 200, { sites: db.sites.map((s) => view(s, req)) });
     }
 
@@ -716,7 +805,9 @@ const adminServer = http.createServer(async (req, res) => {
       const site = {
         id: crypto.randomUUID().slice(0, 8),
         name,
+        emoji: pickEmoji(),
         port,
+        categoryId: catById(String(body.categoryId || '')) ? String(body.categoryId) : null,
         status: 'active',
         versions: [],
         current: null,
@@ -747,6 +838,7 @@ const adminServer = http.createServer(async (req, res) => {
       const site = {
         id: crypto.randomUUID().slice(0, 8),
         name: nameFromFilename(upload.filename),
+        emoji: pickEmoji(),
         port,
         status: 'active',
         versions: [],
@@ -767,6 +859,27 @@ const adminServer = http.createServer(async (req, res) => {
       }
       saveDB();
       return json(res, 201, { ...view(site, req), entry: result?.entry || null, warnings: result?.warnings || [] });
+    }
+
+    // 批量设置分类（必须在 idMatch 之前：正则会把 batch-category 当成站点 id）
+    if (p === '/api/sites/batch-category' && req.method === 'POST') {
+      const body = await readJSON(req);
+      const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
+      if (!ids.length) return json(res, 400, { error: '请选择要归类的站点' });
+      const target = body.categoryId === null || body.categoryId === undefined || body.categoryId === ''
+        ? null
+        : String(body.categoryId);
+      if (target !== null && !catById(target)) return json(res, 400, { error: '分类不存在' });
+
+      let moved = 0;
+      for (const id of ids) {
+        const site = siteById(id);
+        if (!site) continue;
+        site.categoryId = target;
+        moved++;
+      }
+      if (moved) saveDB();
+      return json(res, 200, { ok: true, moved, categoryId: target });
     }
 
     const idMatch = p.match(/^\/api\/sites\/([\w-]+)$/);
@@ -795,6 +908,17 @@ const adminServer = http.createServer(async (req, res) => {
 
       if (typeof body.name === 'string' && body.name.trim()) site.name = body.name.trim().slice(0, 60);
       if (typeof body.hidden === 'boolean') site.hidden = body.hidden;
+
+      // 改分类：null / 空字符串 = 未分类
+      if (body.categoryId !== undefined) {
+        if (body.categoryId === null || body.categoryId === '') {
+          site.categoryId = null;
+        } else if (catById(String(body.categoryId))) {
+          site.categoryId = String(body.categoryId);
+        } else {
+          return json(res, 400, { error: '分类不存在' });
+        }
+      }
 
       // 改端口：先校验，再换监听，失败则回滚
       if (body.port !== undefined && body.port !== null && body.port !== '') {
@@ -829,6 +953,78 @@ const adminServer = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true });
     }
 
+    // ---------------- 分类 ----------------
+
+    if (p === '/api/categories' && req.method === 'GET') {
+      return json(res, 200, {
+        categories: sortedCats().map(categoryView),
+        uncategorized: categoryStats(null),
+        limit: { nameMax: CAT_NAME_MAX, count: CAT_MAX },
+      });
+    }
+
+    if (p === '/api/categories' && req.method === 'POST') {
+      const body = await readJSON(req);
+      const r = validateCategoryName(body.name);
+      if (r.error) return json(res, 400, { error: r.error });
+      if (db.categories.length >= CAT_MAX) return json(res, 400, { error: `分类数量已达上限（${CAT_MAX}）` });
+
+      const maxOrder = db.categories.reduce((m, c) => Math.max(m, c.order), 0);
+      const cat = {
+        id: crypto.randomUUID().slice(0, 8),
+        name: r.name,
+        order: maxOrder + 10,
+        color: db.categories.length % CAT_COLORS,
+      };
+      db.categories.push(cat);
+      saveDB();
+      return json(res, 201, categoryView(cat));
+    }
+
+    // 排序：一次提交完整 id 顺序（避免多次 PATCH 产生中间态）
+    if (p === '/api/categories/order' && req.method === 'PUT') {
+      const body = await readJSON(req);
+      const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
+      let i = 0;
+      for (const id of ids) {
+        const cat = catById(id);
+        if (!cat) continue;
+        i++;
+        cat.order = i * 10;
+      }
+      saveDB();
+      return json(res, 200, { ok: true });
+    }
+
+    const catMatch = p.match(/^\/api\/categories\/([\w-]+)$/);
+
+    if (catMatch && req.method === 'PATCH') {
+      const cat = catById(catMatch[1]);
+      if (!cat) return json(res, 404, { error: '分类不存在' });
+      const body = await readJSON(req);
+
+      if (body.name !== undefined) {
+        const r = validateCategoryName(body.name, cat.id);
+        if (r.error) return json(res, 400, { error: r.error });
+        cat.name = r.name;
+      }
+      if (Number.isFinite(Number(body.order))) cat.order = Number(body.order);
+
+      saveDB();
+      return json(res, 200, categoryView(cat));
+    }
+
+    // 删除分类：站点不删，全部回落为未分类
+    if (catMatch && req.method === 'DELETE') {
+      const cat = catById(catMatch[1]);
+      if (!cat) return json(res, 404, { error: '分类不存在' });
+      const moved = db.sites.filter((s) => s.categoryId === cat.id);
+      for (const s of moved) s.categoryId = null;
+      db.categories = db.categories.filter((c) => c.id !== cat.id);
+      saveDB();
+      return json(res, 200, { ok: true, moved: moved.length, name: cat.name });
+    }
+
     json(res, 404, { error: '接口不存在' });
   } catch (e) {
     console.error('[error]', e.message);
@@ -854,18 +1050,28 @@ const portalServer = http.createServer((req, res) => {
     }
   }
 
-  // 公开列表：只返回已发布且未隐藏的站点
+  // 公开列表：只返回已发布且未隐藏的站点（附带分类字典，供门户分组）
   if (req.method === 'GET' && url.pathname === '/api/sites') {
+    ensureEmojis();
+    const cats = sortedCats();
     const sites = db.sites
       .filter((s) => s.status === 'active' && s.current && !s.hidden)
-      .map((s) => ({
-        id: s.id,
-        name: s.name,
-        url: `http://${hostOf(req)}:${s.port}/`,
-        updatedAt: s.updatedAt || null,
-      }))
+      .map((s) => {
+        const cat = catById(s.categoryId);
+        return {
+          id: s.id,
+          name: s.name,
+          emoji: s.emoji || null,
+          url: `http://${hostOf(req)}:${s.port}/`,
+          updatedAt: s.updatedAt || null,
+          categoryId: cat ? cat.id : null,
+        };
+      })
       .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
-    return json(res, 200, { sites });
+    return json(res, 200, {
+      categories: cats.map((c) => ({ id: c.id, name: c.name, color: c.color, order: c.order })),
+      sites,
+    });
   }
 
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });

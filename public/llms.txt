@@ -6,9 +6,10 @@
 **硬性规则（必须遵守）**
 
 1. **禁止删除任何站点**：不要调用 `DELETE /api/sites/:id`，也不要在页面上点击「删除」按钮。
-2. 允许的操作只有：新增/上传、更新（重新上传）、改名、改端口、在门户隐藏/显示、查看列表。
-3. 不要修改 `data/` 目录下的文件，一切变更都通过下列接口完成。
-4. 不要尝试获取或输出访问密码明文，也不要把密码写进任何 URL、日志或站点内容。
+2. **禁止删除分类**：不要调用 `DELETE /api/categories/:id`（会改变多个站点的归属）。建不了可以用新建替代。
+3. 允许的操作：新增/上传、更新（重新上传）、改名、改端口、在门户隐藏/显示、查看列表，以及分类的新建/改名/排序/把站点归入分类。
+4. 不要修改 `data/` 目录下的文件，一切变更都通过下列接口完成。
+5. 不要尝试获取或输出访问密码明文，也不要把密码写进任何 URL、日志或站点内容。
 
 ---
 
@@ -56,18 +57,23 @@ curl -i -X POST http://{{HOST}}:{{ADMIN_PORT}}/api/login \
 {
   "id": "16edc5d7",
   "name": "归档",
+  "emoji": "🍇",
   "port": 18091,
   "url": "http://{{HOST}}:18091/",
   "status": "active",
   "published": true,
   "hidden": false,
+  "categoryId": "884c372a",
+  "category": { "id": "884c372a", "name": "客户项目", "color": 0 },
   "warnings": [],
   "updatedAt": "2026-10-21T07:47:59.625Z"
 }
 ```
 
 - `published=false` 表示站点已创建但还没上传内容
-- `hidden=true` 表示不在门户首页展示（直连 URL 仍可访问）
+- `hidden=true` 表示不在门户首页展示（直连 URL 仍可访问），与分类是正交的两件事
+- `categoryId=null` + `category=null` 表示未分类
+- `emoji` 是站点图标：服务端新建站点时随机分配、**全局不重复**，老站点会自动补齐；属于展示字段，不要尝试修改
 - `warnings` 是上传时发现的潜在问题（例如引用了站点目录之外的文件）
 
 ---
@@ -83,6 +89,13 @@ curl -i -X POST http://{{HOST}}:{{ADMIN_PORT}}/api/login \
 | 改名 | `PATCH /api/sites/:id` | body `{"name":"新名称"}` |
 | 改端口 | `PATCH /api/sites/:id` | body `{"port":18095}`，失败会自动回滚原端口 |
 | 在门户隐藏 / 在门户显示 | `PATCH /api/sites/:id` | body `{"hidden":true}` / `{"hidden":false}` |
+| 把站点归入分类 | `PATCH /api/sites/:id` | body `{"categoryId":"<分类id>"}`，`null` = 未分类 |
+| 批量归类 | `POST /api/sites/batch-category` | body `{"ids":[...],"categoryId":"<id>"}` |
+| 分类列表 | `GET /api/categories` | 含每个分类的站点数 |
+| 新建分类 | `POST /api/categories` | body `{"name":"客户项目"}`，名称 ≤ 20 字且不重复 |
+| 分类改名 | `PATCH /api/categories/:id` | body `{"name":"新名称"}` |
+| 分类排序 | `PUT /api/categories/order` | body `{"ids":[...]}`，按数组顺序重排 |
+| 删除分类 | `DELETE /api/categories/:id` | **禁止使用，见文首规则**（会把站点移入未分类） |
 | 复制链接 | —（纯前端） | 对应站点的 `url` 字段 |
 | 删除 | `DELETE /api/sites/:id` | **禁止使用，见文首规则** |
 
@@ -130,13 +143,43 @@ curl -s -b cookie.txt -X PATCH http://{{HOST}}:{{ADMIN_PORT}}/api/sites/<id> \
   -H 'Content-Type: application/json' -d '{"hidden":true}'
 ```
 
-一次 PATCH 可以同时带 `name` / `port` / `hidden`。
+一次 PATCH 可以同时带 `name` / `port` / `hidden` / `categoryId`。
 
-### 4.5 公开门户列表（无需登录）
+### 4.5 分类（门户按分类分组）
+
+```bash
+# 分类列表：count = 门户可见站点数，allCount = 含隐藏站点
+curl -s -b cookie.txt http://{{HOST}}:{{ADMIN_PORT}}/api/categories
+# {"categories":[{"id":"884c372a","name":"客户项目","order":10,"color":0,"count":3,"allCount":4}],
+#  "uncategorized":{"count":2,"allCount":2}, "limit":{"nameMax":20,"count":50}}
+
+# 新建（名称 ≤ 20 字，同名会被 400 拒绝）
+curl -s -b cookie.txt -X POST http://{{HOST}}:{{ADMIN_PORT}}/api/categories \
+  -H 'Content-Type: application/json' -d '{"name":"客户项目"}'
+
+# 改单个站点的分类（null 或 "" = 未分类）
+curl -s -b cookie.txt -X PATCH http://{{HOST}}:{{ADMIN_PORT}}/api/sites/<id> \
+  -H 'Content-Type: application/json' -d '{"categoryId":"884c372a"}'
+
+# 批量归类
+curl -s -b cookie.txt -X POST http://{{HOST}}:{{ADMIN_PORT}}/api/sites/batch-category \
+  -H 'Content-Type: application/json' -d '{"ids":["<id1>","<id2>"],"categoryId":"884c372a"}'
+# 200 {"ok":true,"moved":2,"categoryId":"884c372a"}
+
+# 重排门户里的分组顺序（一次提交完整顺序）
+curl -s -b cookie.txt -X PUT http://{{HOST}}:{{ADMIN_PORT}}/api/categories/order \
+  -H 'Content-Type: application/json' -d '{"ids":["884c372a","26b88a7b"]}'
+```
+
+分类的 `color` 由服务端在创建时固定（0-5），用于门户配色；`order` 决定门户里分组的先后，「未分类」永远排在最后。
+
+### 4.6 公开门户列表（无需登录）
 
 ```bash
 curl -s http://{{HOST}}:{{PORTAL_PORT}}/api/sites
-# {"sites":[{"id","name","url","updatedAt"}...]}  仅包含已发布且未隐藏的站点
+# {"categories":[{"id","name","color","order"}...],
+#  "sites":[{"id","name","url","updatedAt","categoryId"}...]}
+# 仅包含已发布且未隐藏的站点
 ```
 
 ---
@@ -162,6 +205,7 @@ curl -s http://{{HOST}}:{{PORTAL_PORT}}/api/sites
 2. `GET /api/sites` 查看现有站点（避免重名/端口冲突）
 3. 需要新站点 → `POST /api/publish`（上传即建站）；需要空站点 → `POST /api/sites`
 4. 内容迭代 → `POST /api/sites/:id/deploy`
-5. 调整名称/端口/门户展示 → `PATCH /api/sites/:id`
-6. 需要站点暂时不出现在门户 → `{"hidden":true}`，需要恢复 → `{"hidden":false}`
-7. 全程**不要**删除站点；确实需要删除时，请提示人工在管理页面操作
+5. 调整名称/端口/门户展示/分类 → `PATCH /api/sites/:id`
+6. 需要批量归类时先 `GET /api/categories` 拿到分类 id，再 `POST /api/sites/batch-category`
+7. 需要站点暂时不出现在门户 → `{"hidden":true}`，需要恢复 → `{"hidden":false}`
+8. 全程**不要**删除站点或分类；确实需要删除时，请提示人工在管理页面操作

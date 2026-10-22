@@ -3,134 +3,316 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
 <title>网站导航</title>
 <style>
+  /* ============ 设计语言：apple.com ============
+     浅底 / 超大标题 / 无边框卡片 / 胶囊分段 / 毛玻璃吸顶导航
+     颜色只出现在「分类」一处，其余全部走中性灰阶
+  ============================================ */
   :root {
-    --bg: #f6f7fb;
-    --card: #ffffff;
-    --text: #12151c;
-    --muted: #6b7280;
-    --line: #e6e8ef;
-    --accent: #3b6cf6;
+    --bg: #ffffff;
+    --bg-soft: #f5f5f7;
+    --bg-soft-hover: #ffffff;
+    --text: #1d1d1f;
+    --text-2: #6e6e73;
+    --text-3: #6e6e73;
+    --line: #d2d2d7;
+    --hairline: rgba(0, 0, 0, .09);
+    --ring: rgba(0, 113, 227, .3);
+    --accent: #0066cc;
+    --seg-active: #ffffff;
+    --glass: rgba(255, 255, 255, .72);
+    --shadow-card: 0 4px 24px rgba(0, 0, 0, .06);
+    --shadow-card-hover: 0 18px 44px rgba(0, 0, 0, .12);
+    --nav-h: 48px;
+    --radius: 20px;
+    --ease: cubic-bezier(.4, 0, .2, 1);
   }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000;
+      --bg-soft: #1d1d1f;
+      --bg-soft-hover: #26262a;
+      --text: #f5f5f7;
+      --text-2: #a1a1a6;
+      --text-3: #a1a1a6;
+      --line: #2d2d2f;
+      --hairline: rgba(255, 255, 255, .12);
+      --ring: rgba(41, 151, 255, .38);
+      --accent: #2997ff;
+      --seg-active: #3a3a3c;
+      --glass: rgba(0, 0, 0, .72);
+      --shadow-card: 0 4px 24px rgba(0, 0, 0, .5);
+      --shadow-card-hover: 0 18px 44px rgba(0, 0, 0, .7);
+    }
+  }
+
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; color-scheme: light dark; }
   body {
-    margin: 0;
-    min-height: 100vh;
-    background:
-      radial-gradient(900px 500px at 12% -10%, #e6ecff 0%, transparent 60%),
-      radial-gradient(800px 460px at 95% 0%, #ffeef2 0%, transparent 55%),
-      var(--bg);
-    color: var(--text);
-    font: 15px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font: 17px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro SC", "SF Pro Text",
+          "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -.01em;
   }
-  .wrap { max-width: 1000px; margin: 0 auto; padding: 64px 22px 80px; }
+  a { color: inherit; }
 
-  header { margin-bottom: 34px; }
-  h1 { font-size: 30px; font-weight: 650; margin: 0 0 8px; letter-spacing: -0.5px; }
-  .sub { color: var(--muted); font-size: 14.5px; }
-
-  .search-wrap { margin: 0 0 24px; display: none; }
-  .search-wrap.show { display: block; }
-  input[type="search"] {
-    width: 100%; max-width: 340px;
-    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
-    padding: 11px 15px; font-size: 14px; color: var(--text); outline: none;
-    box-shadow: 0 1px 2px rgba(16,24,40,.04);
+  /* ---------- 吸顶毛玻璃导航 ---------- */
+  .nav {
+    position: sticky; top: 0; z-index: 30; height: var(--nav-h);
+    background: var(--glass);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--hairline);
   }
-  input[type="search"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,108,246,.12); }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
-    gap: 14px;
+  .nav-inner {
+    max-width: 1024px; height: 100%; margin: 0 auto; padding: 0 22px;
+    display: flex; align-items: center; gap: 28px;
   }
+  .brand {
+    font-size: 14px; font-weight: 600; letter-spacing: -.01em; text-decoration: none;
+    white-space: nowrap;
+  }
+  .nav-links { display: flex; gap: 26px; flex: 1; overflow: hidden; }
+  .nav-links a {
+    font-size: 12px; color: var(--text-2); text-decoration: none; white-space: nowrap;
+    transition: color .2s var(--ease);
+  }
+  .nav-links a:hover { color: var(--text); }
+  .nav-count { font-size: 12px; color: var(--text-3); white-space: nowrap; }
 
+  /* ---------- 版心 ---------- */
+  .wrap { max-width: 1024px; margin: 0 auto; padding: 0 22px 0; }
+
+  /* ---------- 英雄区：超大标题 + 克制副文案 ---------- */
+  .hero { padding: 76px 0 0; }
+  h1 {
+    font-size: clamp(40px, 6.4vw, 64px); font-weight: 600; line-height: 1.04;
+    letter-spacing: -.028em; margin: 0; color: var(--text);
+  }
+  .sub { margin: 14px 0 0; font-size: 19px; line-height: 1.42; color: var(--text-2); letter-spacing: 0; }
+  .sub b { color: var(--text); font-weight: 600; }
+
+  /* ---------- 搜索：胶囊输入框 ---------- */
+  .search-wrap { margin: 30px 0 0; }
+  .search-field {
+    display: flex; align-items: center; gap: 9px; width: 100%; max-width: 360px;
+    background: var(--bg-soft); border-radius: 999px; padding: 0 16px; height: 42px;
+    transition: box-shadow .2s var(--ease), background .2s var(--ease);
+  }
+  .search-field:focus-within {
+    background: var(--bg);
+    box-shadow: 0 0 0 3.5px var(--ring), inset 0 0 0 1px var(--line);
+  }
+  .search-field svg { flex-shrink: 0; color: var(--text-3); }
+  .search-field input {
+    flex: 1; border: 0; outline: none; background: transparent; color: var(--text);
+    font: inherit; font-size: 15px; letter-spacing: -.005em; min-width: 0;
+  }
+  .search-field input::placeholder { color: var(--text-3); }
+  .search-field kbd {
+    flex-shrink: 0; font: inherit; font-size: 11px; letter-spacing: .02em;
+    color: var(--text-3); background: rgba(0, 0, 0, .05);
+    border-radius: 6px; padding: 2px 6px; line-height: 1.4;
+  }
+  @media (prefers-color-scheme: dark) { .search-field kbd { background: rgba(255, 255, 255, .1); } }
+  .search-field:focus-within kbd, .search-field.has-value kbd { opacity: 0; }
+  .search-field input::-webkit-search-cancel-button { -webkit-appearance: none; }
+
+  /* 命中的关键词 */
+  mark {
+    background: rgba(0, 102, 204, .16); color: inherit; border-radius: 3px; padding: 0 1px;
+  }
+  @media (prefers-color-scheme: dark) { mark { background: rgba(41, 151, 255, .3); } }
+
+  /* 筛选结果条 */
+  .result-bar {
+    display: flex; align-items: center; gap: 12px; margin: 26px 0 0;
+    font-size: 14px; color: var(--text-2);
+  }
+  .result-bar[hidden] { display: none; }
+  .result-bar b { color: var(--text); font-weight: 600; }
+  .result-bar button {
+    border: 0; background: transparent; color: var(--accent); font: inherit; font-size: 14px;
+    cursor: pointer; padding: 0; text-decoration: none;
+  }
+  .result-bar button:hover { text-decoration: underline; }
+
+  /* ---------- 分类：胶囊分段控件 ---------- */
+  .seg-scroll { overflow-x: auto; scrollbar-width: none; margin: 34px 0 0; padding-bottom: 2px; }
+  .seg-scroll::-webkit-scrollbar { display: none; }
+  .seg {
+    display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px;
+    background: var(--bg-soft); white-space: nowrap;
+  }
+  .seg button {
+    border: 0; background: transparent; color: var(--text-2); cursor: pointer;
+    font: inherit; font-size: 13.5px; font-weight: 500; letter-spacing: -.005em;
+    padding: 7px 15px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background .22s var(--ease), color .22s var(--ease), box-shadow .22s var(--ease);
+  }
+  .seg button:hover { color: var(--text); }
+  .seg button[aria-pressed="true"] {
+    background: var(--seg-active); color: var(--text);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .1), 0 0 0 .5px rgba(0, 0, 0, .04);
+  }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .seg .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .seg .n { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .seg button[aria-pressed="true"] .n { color: var(--text-2); }
+
+  /* ---------- 分组 ---------- */
+  .cat-group { margin: 72px 0 0; scroll-margin-top: calc(var(--nav-h) + 24px); }
+  .cat-head { display: flex; align-items: baseline; gap: 12px; margin: 0 0 22px; }
+  .cat-head h2 {
+    font-size: 26px; font-weight: 600; letter-spacing: -.022em; margin: 0; color: var(--text);
+  }
+  .cat-head .count { font-size: 14px; color: var(--text-3); letter-spacing: 0; }
+
+  /* ---------- 卡片：无边框灰底瓦片，悬停浮起转白 ---------- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(272px, 1fr)); gap: 16px; }
   .card {
-    display: flex; align-items: center; gap: 14px;
-    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
-    padding: 16px 18px; text-decoration: none; color: inherit;
-    box-shadow: 0 1px 2px rgba(16,24,40,.04);
-    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
-    position: relative;
+    display: flex; flex-direction: column;
+    background: var(--bg-soft); border-radius: var(--radius);
+    padding: 22px 22px 18px; text-decoration: none; color: inherit;
+    transition: transform .3s var(--ease), box-shadow .3s var(--ease), background .3s var(--ease);
+    animation: rise .5s var(--ease) both;
   }
+  @keyframes rise { from { opacity: 0; translate: 0 10px; } to { opacity: 1; translate: 0 0; } }
   .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 26px rgba(16,24,40,.09);
-    border-color: #d4d9e6;
+    background: var(--bg-soft-hover); transform: translateY(-4px);
+    box-shadow: var(--shadow-card-hover);
   }
-  .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-  .avatar {
-    width: 44px; height: 44px; flex-shrink: 0;
-    border-radius: 11px; display: flex; align-items: center; justify-content: center;
-    font-size: 18px; font-weight: 600; color: #fff;
-    text-transform: uppercase;
+  .tile {
+    width: 46px; height: 46px; border-radius: 13px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; line-height: 1;
   }
-  .card-body { min-width: 0; flex: 1; }
   .card-name {
-    font-size: 15px; font-weight: 550; margin-bottom: 3px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin: 18px 0 0; font-size: 17px; font-weight: 600; letter-spacing: -.015em; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .card-meta {
-    font-size: 12.5px; color: var(--muted);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  .card-meta { margin: 5px 0 0; font-size: 13px; color: var(--text-3); letter-spacing: 0; }
+  .card-cta {
+    margin-top: 14px; font-size: 13px; color: var(--accent); font-weight: 500;
+    display: inline-flex; align-items: center; gap: 4px;
   }
-  .arrow {
-    flex-shrink: 0; color: #c3c9d6; font-size: 17px;
-    transition: transform .16s ease, color .16s ease;
-  }
-  .card:hover .arrow { transform: translateX(3px); color: var(--accent); }
+  .card-cta span { transition: transform .3s var(--ease); }
+  .card:hover .card-cta span { transform: translateX(3px); }
 
+  /* ---------- 空态 ---------- */
   .empty {
-    text-align: center; padding: 70px 20px; color: var(--muted);
-    background: var(--card); border: 1px dashed var(--line); border-radius: 16px;
+    margin: 64px 0 0; text-align: center; padding: 72px 24px;
+    background: var(--bg-soft); border-radius: 24px;
   }
   .empty .big { font-size: 34px; margin-bottom: 12px; opacity: .55; }
-  .empty p { margin: 0; font-size: 14px; }
-
-  footer {
-    margin-top: 44px; text-align: center; color: #9aa1b1; font-size: 12.5px;
+  .empty p { margin: 0; font-size: 17px; color: var(--text-2); }
+  .empty button {
+    margin-top: 20px; border: 0; cursor: pointer; font: inherit; font-size: 14px;
+    background: var(--accent); color: #fff; border-radius: 999px; padding: 9px 20px;
+    transition: filter .2s var(--ease);
   }
+  .empty button:hover { filter: brightness(1.08); }
 
+  /* ---------- 页脚 ---------- */
+  footer {
+    margin-top: 88px; padding: 24px 0 44px; border-top: 1px solid var(--line);
+    font-size: 12px; color: var(--text-3); line-height: 1.7; letter-spacing: 0;
+  }
+  footer .row { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { animation: none !important; transition: none !important; }
+  }
+  @media (max-width: 820px) {
+    .nav-links { display: none; }
+    .nav-inner { gap: 16px; }
+    .nav-count { margin-left: auto; }
+  }
   @media (max-width: 600px) {
-    .wrap { padding: 40px 16px 60px; }
-    h1 { font-size: 24px; }
-    .grid { grid-template-columns: 1fr; }
+    .wrap { padding: 0 18px; }
+    .hero { padding: 44px 0 0; }
+    h1 { font-size: 38px; }
+    .sub { font-size: 16px; }
+    .search-field { max-width: none; }
+    .seg-scroll { margin-top: 26px; }
+    .cat-group { margin-top: 48px; }
+    .cat-head h2 { font-size: 22px; }
+    .grid { grid-template-columns: 1fr; gap: 12px; }
+    .card { padding: 20px; }
+    footer { margin-top: 60px; }
   }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>网站导航</h1>
-    <div class="sub" id="sub">正在加载…</div>
-  </header>
 
-  <div class="search-wrap" id="searchWrap">
-    <input type="search" id="search" placeholder="搜索网站名称…" autocomplete="off" />
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="/">网站导航</a>
+    <nav class="nav-links" id="navLinks" aria-label="分类跳转"></nav>
+    <span class="nav-count" id="navCount"></span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>网站导航</h1>
+    <p class="sub" id="sub">正在加载…</p>
+
+    <div class="search-wrap" id="searchWrap">
+      <label class="search-field">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" /><path d="m20 20-3.6-3.6" />
+        </svg>
+        <input type="search" id="search" placeholder="搜索网站名称、分类或端口" autocomplete="off" aria-label="搜索网站名称、分类或端口" />
+        <kbd>⌘K</kbd>
+      </label>
+    </div>
+  </section>
+
+  <div class="result-bar" id="resultBar" aria-live="polite" hidden>
+    <span id="resultText"></span>
+    <button id="clearFilter" type="button">清除筛选</button>
+  </div>
+
+  <div class="seg-scroll">
+    <div class="seg" id="filters" role="group" aria-label="按分类筛选"></div>
   </div>
 
   <div id="content"></div>
 
-  <footer>内部静态网站 · 点击卡片即可打开</footer>
-</div>
+  <footer>
+    <div class="row">
+      <span>内部静态网站 · 点击卡片即可打开</span>
+      <span id="footMeta"></span>
+    </div>
+  </footer>
+</main>
 
 <script>
-const AVATAR_COLORS = [
-  ['#3b6cf6', '#7aa2ff'], ['#7c3aed', '#a78bfa'], ['#0ea5e9', '#67d3f5'],
-  ['#10b981', '#5eead4'], ['#f59e0b', '#fcd34d'], ['#ef4444', '#fca5a5'],
-  ['#ec4899', '#f9a8d4'], ['#14b8a6', '#7dd3c7'],
+const CAT_PALETTE = [
+  ['#4f46e5', '#818cf8'],
+  ['#0891b2', '#22d3ee'],
+  ['#ea580c', '#fb923c'],
+  ['#db2777', '#f472b6'],
+  ['#059669', '#34d399'],
+  ['#7c3aed', '#a78bfa'],
 ];
+const UNCAT_COLOR = ['#94a3b8', '#cbd5e1'];
 
-let all = [];
+const state = { categories: [], sites: [], q: '', cat: 'all' };
 
-function colorFor(name) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
+const $ = (id) => document.getElementById(id);
+const catById = (id) => (id ? state.categories.find((c) => c.id === id) || null : null);
+const catColor = (cat) => (cat ? CAT_PALETTE[cat.color % CAT_PALETTE.length] : UNCAT_COLOR);
+const byOrder = (a, b) => a.order - b.order || a.name.localeCompare(b.name);
 
 function fmt(iso) {
   if (!iso) return '已发布';
@@ -147,55 +329,248 @@ function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function render(list) {
-  const content = document.getElementById('content');
-  if (!list.length) {
-    const isFiltered = list !== all;
+/** 分组：分类按 order，未分类永远排最后；组内按更新时间倒序 */
+function groupSites() {
+  const q = state.q.trim().toLowerCase();
+  const groups = state.categories
+    .slice()
+    .sort(byOrder)
+    .map((c) => ({ key: c.id, name: c.name, color: catColor(c), sites: [] }));
+  groups.push({ key: '__none', name: '未分类', color: UNCAT_COLOR, sites: [] });
+
+  for (const s of state.sites) {
+    if (q && !matchSite(s, q)) continue;
+    if (state.cat !== 'all') {
+      if (state.cat === '__none' ? s.categoryId : s.categoryId !== state.cat) continue;
+    }
+    const g = groups.find((x) => x.key === (s.categoryId || '__none')) || groups[groups.length - 1];
+    g.sites.push(s);
+  }
+  for (const g of groups) g.sites.sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+  return groups.filter((g) => g.sites.length > 0);
+}
+
+/** 导航里的分类快捷链接：按「全部站点」算，不随搜索/筛选抖动 */
+function renderNav() {
+  const present = new Set(state.sites.map((s) => s.categoryId || '__none'));
+  const items = state.categories
+    .slice()
+    .sort(byOrder)
+    .filter((c) => present.has(c.id))
+    .map((c) => ({ key: c.id, name: c.name }));
+  if (present.has('__none')) items.push({ key: '__none', name: '未分类' });
+
+  $('navLinks').innerHTML = items.length > 1
+    ? items.map((g) => `<a href="#g-${esc(g.key)}">${esc(g.name)}</a>`).join('')
+    : '';
+}
+
+function renderFilters() {
+  const counts = new Map();
+  for (const s of state.sites) {
+    const k = s.categoryId || '__none';
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+
+  const chips = [{ key: 'all', name: '全部', n: state.sites.length, color: null }];
+  for (const c of state.categories.slice().sort(byOrder)) {
+    const n = counts.get(c.id) || 0;
+    if (n) chips.push({ key: c.id, name: c.name, n, color: catColor(c) });
+  }
+  const none = counts.get('__none') || 0;
+  if (none) chips.push({ key: '__none', name: '未分类', n: none, color: UNCAT_COLOR });
+
+  $('filters').innerHTML = chips.map((c) => `
+    <button aria-pressed="${c.key === state.cat}" data-chip="${esc(c.key)}">
+      ${c.color ? `<span class="dot" style="background:${c.color[0]}"></span>` : ''}${esc(c.name)}<span class="n">${c.n}</span>
+    </button>`).join('');
+
+  $('filters').querySelectorAll('[data-chip]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.cat = btn.dataset.chip;
+      syncUrl();
+      render();
+    });
+  });
+}
+
+const catNameOf = (id) => {
+  const c = catById(id);
+  return c ? c.name : '未分类';
+};
+
+/** 搜索范围：站点名 + 分类名 + 端口/地址 + 图标字符 */
+function matchSite(s, q) {
+  return `${s.name} ${catNameOf(s.categoryId)} ${s.url} ${s.emoji || ''}`.toLowerCase().includes(q);
+}
+
+/** 把命中的片段包进 <mark>（逐段转义，避免 XSS） */
+function highlight(text, q) {
+  const str = String(text ?? '');
+  if (!q) return esc(str);
+  const lower = str.toLowerCase();
+  const out = [];
+  let i = 0;
+  while (i < str.length) {
+    const at = lower.indexOf(q, i);
+    if (at < 0) { out.push(esc(str.slice(i))); break; }
+    out.push(esc(str.slice(i, at)), '<mark>' + esc(str.slice(at, at + q.length)) + '</mark>');
+    i = at + q.length;
+  }
+  return out.join('');
+}
+
+function card(s, color, i) {
+  const [c1, c2] = color;
+  // 图标由服务端随机分配且全局不重复；缺图标时退回名称首字
+  const icon = s.emoji || String(s.name || '?').trim().charAt(0) || '?';
+  return `
+    <a class="card" href="${esc(s.url)}" target="_blank" rel="noopener" style="animation-delay:${Math.min(i, 12) * 28}ms">
+      <span class="tile" style="background:linear-gradient(135deg,${c1}2e,${c2}1a)">${esc(icon)}</span>
+      <div class="card-name">${highlight(s.name, state.q.trim().toLowerCase())}</div>
+      <div class="card-meta">${esc(fmt(s.updatedAt))}</div>
+      <div class="card-cta">打开<span aria-hidden="true">›</span></div>
+    </a>`;
+}
+
+function render() {
+  renderFilters();
+
+  const total = state.sites.length;
+  const catCount = state.categories.length;
+  $('sub').innerHTML = total
+    ? `共 <b>${total}</b> 个网站${catCount ? `，分为 <b>${catCount}</b> 个分类` : ''}`
+    : '暂无网站';
+  $('navCount').textContent = total ? `${total} 个站点` : '';
+  $('footMeta').textContent = total ? `${catCount + 1} 个分组` : '';
+  $('searchWrap').querySelector('.search-field').classList.toggle('has-value', Boolean(state.q));
+
+  const groups = groupSites();
+  renderNav();
+
+  // 结果条：只在搜索/分类筛选生效时出现
+  const matched = groups.reduce((n, g) => n + g.sites.length, 0);
+  const filtering = Boolean(state.q.trim()) || state.cat !== 'all';
+  const bar = $('resultBar');
+  bar.hidden = !filtering;
+  if (filtering) {
+    const parts = [];
+    if (state.q.trim()) parts.push(`匹配「<b>${esc(state.q.trim())}</b>」`);
+    if (state.cat !== 'all') {
+      const n = state.cat === '__none' ? '未分类' : catNameOf(state.cat);
+      parts.push(`分类「<b>${esc(n)}</b>」`);
+    }
+    $('resultText').innerHTML = `${parts.join(' · ')}，共 <b>${matched}</b> 个网站`;
+  }
+
+  const content = $('content');
+
+  if (!groups.length) {
+    const filtered = Boolean(state.q) || state.cat !== 'all';
     content.innerHTML = `
       <div class="empty">
-        <div class="big">${isFiltered ? '🔍' : '📄'}</div>
-        <p>${isFiltered ? '没有匹配的网站' : '还没有发布任何网站'}</p>
+        <div class="big">${filtered ? '🔍' : '📄'}</div>
+        <p>${filtered ? '没有匹配的网站' : '还没有发布任何网站'}</p>
+        ${filtered ? '<button id="resetBtn">清空筛选条件</button>' : ''}
       </div>`;
+    const reset = $('resetBtn');
+    if (reset) {
+      reset.addEventListener('click', () => {
+        state.q = '';
+        state.cat = 'all';
+        $('search').value = '';
+        syncUrl();
+        render();
+      });
+    }
     return;
   }
 
-  content.innerHTML = `<div class="grid">${list.map((s) => {
-    const [c1, c2] = colorFor(s.name);
-    const letter = s.name.trim().charAt(0) || '?';
-    return `
-      <a class="card" href="${esc(s.url)}" target="_blank" rel="noopener">
-        <div class="avatar" style="background:linear-gradient(135deg,${c1},${c2})">${esc(letter)}</div>
-        <div class="card-body">
-          <div class="card-name">${esc(s.name)}</div>
-          <div class="card-meta">${esc(fmt(s.updatedAt))}</div>
-        </div>
-        <div class="arrow">→</div>
-      </a>`;
-  }).join('')}</div>`;
+  content.innerHTML = groups.map((g) => `
+    <section class="cat-group" aria-labelledby="g-${esc(g.key)}">
+      <div class="cat-head">
+        <h2 id="g-${esc(g.key)}">${esc(g.name)}</h2>
+        <span class="count">${g.sites.length} 个网站</span>
+      </div>
+      <div class="grid">${g.sites.map((s, i) => card(s, g.color, i)).join('')}</div>
+    </section>`).join('');
 }
 
-function applyFilter() {
-  const q = document.getElementById('search').value.trim().toLowerCase();
-  render(q ? all.filter((s) => s.name.toLowerCase().includes(q)) : all);
+/** 筛选状态进 URL：分享「只看某个分类」的链接 */
+function syncUrl() {
+  try {
+    const u = new URL(location.href);
+    if (state.cat === 'all') u.searchParams.delete('c');
+    else u.searchParams.set('c', state.cat);
+    if (state.q) u.searchParams.set('q', state.q);
+    else u.searchParams.delete('q');
+    history.replaceState(null, '', u);
+  } catch { /* file:// 等环境忽略 */ }
+}
+
+function readUrl() {
+  try {
+    const u = new URL(location.href);
+    const c = u.searchParams.get('c');
+    const q = u.searchParams.get('q');
+    if (c) state.cat = c;
+    if (q) {
+      state.q = q;
+      $('search').value = q;
+    }
+  } catch { /* ignore */ }
 }
 
 async function load() {
   try {
     const res = await fetch('/api/sites', { cache: 'no-store' });
     const data = await res.json();
-    all = data.sites || [];
-    document.getElementById('sub').textContent = all.length
-      ? `共 ${all.length} 个网站，点击即可访问`
-      : '暂无网站';
-    document.getElementById('searchWrap').classList.toggle('show', all.length > 6);
-    applyFilter();
+    state.categories = data.categories || [];
+    state.sites = data.sites || [];
+    // 分类被删后 URL 里的 ?c= 会失效，回落到「全部」并清掉失效参数
+    if (state.cat !== 'all' && state.cat !== '__none' && !catById(state.cat)) {
+      state.cat = 'all';
+      syncUrl();
+    }
+    render();
   } catch {
-    document.getElementById('sub').textContent = '加载失败，请刷新页面';
+    $('sub').textContent = '加载失败，请刷新页面';
   }
 }
 
-document.getElementById('search').addEventListener('input', applyFilter);
+function clearFilters({ keepFocus = false } = {}) {
+  state.q = '';
+  state.cat = 'all';
+  $('search').value = '';
+  syncUrl();
+  render();
+  if (keepFocus) $('search').focus();
+}
 
+$('search').addEventListener('input', (e) => {
+  state.q = e.target.value;
+  syncUrl();
+  render();
+});
+
+$('clearFilter').addEventListener('click', () => clearFilters({ keepFocus: true }));
+
+// ⌘K / Ctrl+K 聚焦搜索，Esc 清空并失焦
+document.addEventListener('keydown', (e) => {
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    $('search').focus();
+    $('search').select();
+    return;
+  }
+  if (e.key === 'Escape' && document.activeElement === $('search')) {
+    if (state.q) clearFilters();
+    $('search').blur();
+  }
+});
+
+readUrl();
 load();
 setInterval(load, 30000);  // 每 30 秒自动刷新
 </script>
