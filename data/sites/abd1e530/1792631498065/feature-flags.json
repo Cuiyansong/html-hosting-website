@@ -1,0 +1,7 @@
+{
+  "nav": {
+    "enableMyApprovalManagement": true,
+    "enableCreateWorkflow": true,
+    "enablePortal": false
+  }
+}

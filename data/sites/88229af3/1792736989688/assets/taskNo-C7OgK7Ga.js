@@ -1,0 +1,1 @@
+function e(e,t){return(e.replace(/[-/\s:.]/g,``)+`00000101000000`).slice(0,14)+String(t).padStart(3,`0`)}function t(t,n,r=1){return`${t}_${e(n,r)}`}export{t};

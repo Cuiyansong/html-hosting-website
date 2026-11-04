@@ -1,0 +1,1 @@
+var e={title:`多模态知识库`,description:`统一管理文档、图片与音视频知识资产`,apiBaseUrl:``,isDev:!1,mode:`production`};export{e as t};

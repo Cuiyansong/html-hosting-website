@@ -1,0 +1,50 @@
+# 复制到服务器 Nginx 站点配置，按注释改 root / server_name
+# 构建：npm ci && npm run build
+# 将仓库根目录 dist/ 整目录拷到 root 指向的路径
+#
+# 部署在非根目录（如 http://host/kb/）时：
+#   1. 构建前在 .env.production 设置 VITE_APP_BASE=/kb/（或 npm run build -- --base=/kb/）
+#   2. 参考下方"非根目录部署示例"注释块
+
+server {
+    listen 80;
+    server_name kb.example.internal;
+    root /var/www/multimodal-knowledge-base/dist;
+    index index.html;
+
+    # SPA：刷新或直开 /templates 等路径时回到 index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?)$ {
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+}
+
+# ================= 非根目录部署示例（以 /kb/ 为例）=================
+# 前提：构建时 VITE_APP_BASE=/kb/，dist 拷贝到 /var/www/multimodal-knowledge-base/dist
+#
+# server {
+#     listen 80;
+#     server_name kb.example.internal;
+#
+#     location /kb/ {
+#         alias /var/www/multimodal-knowledge-base/dist/;
+#         index index.html;
+#         try_files $uri $uri/ /kb/index.html;
+#     }
+#
+#     location ~* \.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?)$ {
+#         expires 7d;
+#         add_header Cache-Control "public, immutable";
+#     }
+#
+#     gzip on;
+#     gzip_types text/css application/javascript application/json image/svg+xml;
+# }

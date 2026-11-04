@@ -1,0 +1,1 @@
+var e=[`图片`,`PDF`,`word`,`excel`,`CSV`,`txt`,`音频`,`视频`].map(e=>({label:e,value:e}));export{e as t};

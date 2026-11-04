@@ -1,0 +1,4 @@
+body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;
+background:linear-gradient(135deg,#667eea,#764ba2);font-family:system-ui}
+.box{background:#fff;padding:48px 64px;border-radius:20px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+h1{margin:0 0 12px;color:#333}p{color:#666;margin:0 0 20px}

@@ -1,0 +1,172 @@
+{
+  "sites": [
+    {
+      "id": "45a90f50",
+      "name": "产品官网",
+      "port": 18088,
+      "status": "active",
+      "versions": [
+        "1792568219675",
+        "1792568239180",
+        "1792568378482"
+      ],
+      "current": "1792568378482",
+      "createdAt": "2026-10-21T07:36:59.675Z",
+      "updatedAt": "2026-10-21T07:39:38.483Z",
+      "categoryId": "4ded6b64",
+      "emoji": "🏠"
+    },
+    {
+      "id": "16edc5d7",
+      "name": "归档",
+      "port": 18092,
+      "status": "active",
+      "versions": [
+        "1792568879389"
+      ],
+      "current": "1792568879389",
+      "createdAt": "2026-10-21T07:47:59.388Z",
+      "updatedAt": "2026-10-21T07:47:59.625Z",
+      "hidden": true,
+      "categoryId": "2554a23f",
+      "emoji": "🗺️"
+    },
+    {
+      "id": "37c950f8",
+      "name": "山西个金-报表",
+      "port": 18089,
+      "status": "active",
+      "versions": [
+        "1792571342014"
+      ],
+      "current": "1792571342014",
+      "createdAt": "2026-10-21T08:29:02.014Z",
+      "updatedAt": "2026-10-21T08:29:02.204Z",
+      "warnings": [
+        "页面引用了站点目录之外的文件（../ui-config/variable.js），这些资源将无法访问"
+      ],
+      "categoryId": "2554a23f",
+      "emoji": "📊"
+    },
+    {
+      "id": "5adcd401",
+      "name": "原型｜报表平台",
+      "port": 18090,
+      "status": "active",
+      "versions": [
+        "1793687555128",
+        "1793693779014",
+        "1793693815652"
+      ],
+      "current": "1793693815652",
+      "createdAt": "2026-10-21T13:33:48.081Z",
+      "updatedAt": "2026-11-03T08:16:55.676Z",
+      "warnings": [],
+      "emoji": "📈",
+      "categoryId": "2554a23f"
+    },
+    {
+      "id": "40767109",
+      "name": "测试网站",
+      "port": 18091,
+      "status": "active",
+      "versions": [
+        "1792630269493"
+      ],
+      "current": "1792630269493",
+      "createdAt": "2026-10-22T00:51:09.493Z",
+      "updatedAt": "2026-10-22T00:51:09.496Z",
+      "warnings": [],
+      "emoji": "🧪",
+      "categoryId": "4ded6b64"
+    },
+    {
+      "id": "abd1e530",
+      "name": "test",
+      "port": 18093,
+      "status": "active",
+      "versions": [
+        "1792631498065"
+      ],
+      "current": "1792631498065",
+      "createdAt": "2026-10-22T01:11:38.016Z",
+      "updatedAt": "2026-10-22T01:11:38.231Z",
+      "warnings": [
+        "页面引用了站点目录之外的文件（../ui-config/variable.js），这些资源将无法访问"
+      ],
+      "emoji": "🔬"
+    },
+    {
+      "id": "88229af3",
+      "name": "multimodal-knowledge-base-v2.0.10-deploy",
+      "emoji": "🌹",
+      "port": 18094,
+      "status": "active",
+      "versions": [
+        "1792736989688"
+      ],
+      "current": "1792736989688",
+      "createdAt": "2026-10-23T06:29:49.687Z",
+      "updatedAt": "2026-10-23T06:29:49.724Z",
+      "warnings": []
+    },
+    {
+      "id": "f40437e7",
+      "name": "测试｜LLM自动发布验证",
+      "emoji": "🧫",
+      "port": 18095,
+      "status": "active",
+      "versions": [
+        "1793156467405"
+      ],
+      "current": "1793156467405",
+      "createdAt": "2026-10-28T03:01:07.405Z",
+      "updatedAt": "2026-10-28T03:01:07.416Z",
+      "warnings": [],
+      "hidden": true
+    },
+    {
+      "id": "2687d555",
+      "name": "数据工厂",
+      "emoji": "📉",
+      "port": 18096,
+      "status": "active",
+      "versions": [
+        "1793158484217"
+      ],
+      "current": "1793158484217",
+      "createdAt": "2026-10-28T03:34:44.217Z",
+      "updatedAt": "2026-10-28T03:34:53.546Z",
+      "warnings": [
+        "4 个页面引用的文件不存在（如 /icon-light-32x32.png, /icon-dark-32x32.png, /icon.svg），页面可能显示不完整"
+      ],
+      "categoryId": "da36a802"
+    }
+  ],
+  "categories": [
+    {
+      "id": "4ded6b64",
+      "name": "产品原型",
+      "order": 10,
+      "color": 0
+    },
+    {
+      "id": "2554a23f",
+      "name": "JBF报表平台",
+      "order": 20,
+      "color": 1
+    },
+    {
+      "id": "0f5d94b9",
+      "name": "多模态知识库",
+      "order": 30,
+      "color": 2
+    },
+    {
+      "id": "da36a802",
+      "name": "数据工厂",
+      "order": 40,
+      "color": 3
+    }
+  ]
+}
