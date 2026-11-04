@@ -13,6 +13,7 @@ import net from 'node:net';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import Busboy from 'busboy';
 import yauzl from 'yauzl';
 
@@ -29,7 +30,9 @@ if (NODE_MAJOR < MIN_NODE_MAJOR) {
   process.exit(1);
 }
 
-const ROOT = path.dirname(new URL(import.meta.url).pathname);
+// fileURLToPath 而不是 URL.pathname：Windows 下 pathname 会得到 /C:/... 且保留 %E5 这类
+// 百分号编码，拼出来的 data 目录既不在项目里也创建失败（表现为「data 目录不存在」）
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(ROOT, 'data');
 const SITES_DIR = path.join(DATA_DIR, 'sites');
 const TMP_DIR = path.join(DATA_DIR, 'tmp');
@@ -50,7 +53,18 @@ const PORT_MIN = Number(process.env.PORT_MIN || 10000);
 const PORT_MAX = Number(process.env.PORT_MAX || 65535);
 const RESERVED_PORTS = new Set([ADMIN_PORT, PORTAL_PORT]);
 
-for (const d of [DATA_DIR, SITES_DIR, TMP_DIR]) fs.mkdirSync(d, { recursive: true });
+for (const d of [DATA_DIR, SITES_DIR, TMP_DIR]) {
+  try {
+    fs.mkdirSync(d, { recursive: true });
+  } catch (e) {
+    console.error('');
+    console.error(`  ✗ 无法创建数据目录：${d}`);
+    console.error(`    ${e.message}`);
+    console.error(`    请确认项目目录路径不含特殊字符、当前用户有写权限；项目根目录为 ${ROOT}`);
+    console.error('');
+    process.exit(1);
+  }
+}
 
 // ---------------------------------------------------------------- 密码与会话
 

@@ -34,6 +34,8 @@ npm install
 npm start
 ```
 
+支持 macOS / Linux / Windows：项目根目录由 `import.meta.url` 解析（`fileURLToPath`），中文路径、带空格路径、盘符都能正确落到 `data/` 下；目录创建失败会直接打印具体路径与原因。
+
 首次启动会自动生成登录密码并打印在控制台（同时保存到 `data/password.txt`）：
 
 ```

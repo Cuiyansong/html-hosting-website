@@ -66,21 +66,6 @@
       "categoryId": "2554a23f"
     },
     {
-      "id": "40767109",
-      "name": "测试网站",
-      "port": 18091,
-      "status": "active",
-      "versions": [
-        "1792630269493"
-      ],
-      "current": "1792630269493",
-      "createdAt": "2026-10-22T00:51:09.493Z",
-      "updatedAt": "2026-10-22T00:51:09.496Z",
-      "warnings": [],
-      "emoji": "🧪",
-      "categoryId": "4ded6b64"
-    },
-    {
       "id": "abd1e530",
       "name": "test",
       "port": 18093,
